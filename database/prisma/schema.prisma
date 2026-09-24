@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OutboxProcessingStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+/// Minimal platform table for reliable publication of future domain events.
+/// Product entities are intentionally not part of the Foundation schema.
+model OutboxEvent {
+  id               String                @id @db.Uuid
+  eventType        String                @map("event_type") @db.VarChar(120)
+  idempotencyKey   String                @map("idempotency_key") @db.VarChar(200)
+  version          Int                   @default(1)
+  aggregateType    String                @map("aggregate_type") @db.VarChar(120)
+  aggregateId      String                @map("aggregate_id") @db.VarChar(255)
+  actorId          String?               @map("actor_id") @db.Uuid
+  payload          Json
+  occurredAt       DateTime              @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  processingStatus OutboxProcessingStatus @default(PENDING) @map("processing_status")
+  attemptCount     Int                   @default(0) @map("attempt_count")
+  availableAt      DateTime              @default(now()) @map("available_at") @db.Timestamptz(6)
+  processedAt      DateTime?             @map("processed_at") @db.Timestamptz(6)
+  lastError        String?               @map("last_error") @db.Text
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([processingStatus, availableAt])
+  @@unique([eventType, idempotencyKey])
+  @@index([eventType, occurredAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}

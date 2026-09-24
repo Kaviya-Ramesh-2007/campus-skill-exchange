@@ -1,0 +1,53 @@
+{
+  "name": "campus-skill-exchange",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Campus Skill Exchange — Learn. Teach. Exchange. Grow.",
+  "license": "UNLICENSED",
+  "packageManager": "npm@11.19.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "database"
+  ],
+  "scripts": {
+    "install:deps": "npm install",
+    "dev": "npm run build:packages && npm run build:database && concurrently --kill-others --names web,api --prefix-colors cyan,magenta \"npm run dev -w @campus-skill-exchange/web\" \"npm run dev -w @campus-skill-exchange/api\"",
+    "dev:web": "npm run build:packages && npm run dev -w @campus-skill-exchange/web",
+    "dev:api": "npm run build:packages && npm run build:database && npm run dev -w @campus-skill-exchange/api",
+    "build:packages": "npm run build -w @campus-skill-exchange/contracts && npm run build -w @campus-skill-exchange/config && npm run build -w @campus-skill-exchange/ui",
+    "build:database": "npm run build -w @campus-skill-exchange/database",
+    "db:generate": "npm run db:generate -w @campus-skill-exchange/database",
+    "db:validate": "npm run db:validate -w @campus-skill-exchange/database",
+    "db:migrate": "npm run db:migrate -w @campus-skill-exchange/database",
+    "db:deploy": "npm run db:deploy -w @campus-skill-exchange/database",
+    "db:reset": "npm run db:reset -w @campus-skill-exchange/database",
+    "db:studio": "npm run db:studio -w @campus-skill-exchange/database",
+    "lint": "eslint apps packages database/src eslint.config.mjs --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run build:packages && npm run build:database && npm run typecheck --workspaces --if-present",
+    "test": "npm run build:packages && npm run build:database && npm run test --workspaces --if-present",
+    "build": "npm run build:packages && npm run build:database && npm run build -w @campus-skill-exchange/api && npm run build -w @campus-skill-exchange/web"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@fastify/static": "10.1.4",
+    "@types/node": "24.13.6",
+    "concurrently": "10.0.5",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.6",
+    "es-toolkit": "1.52.0",
+    "next": "16.3.6",
+    "eslint-config-prettier": "10.1.8",
+    "jsdom": "30.1.1",
+    "prettier": "3.9.9",
+    "rxjs": "7.8.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1"
+  }
+}
