@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import type { ApiErrorCode } from '@campus-skill-exchange/contracts';
+import { apiErrorCodeSchema, type ApiErrorCode } from '@campus-skill-exchange/contracts';
 import { AppLogger } from '../../platform/logging/app-logger';
 
 const defaultCodes: Record<number, ApiErrorCode> = {
@@ -83,18 +83,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
   }
 
   private asCode(value: unknown): ApiErrorCode | undefined {
-    if (typeof value !== 'string') return undefined;
-    return value === 'VALIDATION_ERROR' ||
-      value === 'BAD_REQUEST' ||
-      value === 'AUTHENTICATION_REQUIRED' ||
-      value === 'FORBIDDEN' ||
-      value === 'NOT_FOUND' ||
-      value === 'CONFLICT' ||
-      value === 'RATE_LIMITED' ||
-      value === 'DEPENDENCY_UNAVAILABLE' ||
-      value === 'INTERNAL_ERROR'
-      ? value
-      : undefined;
+    const result = apiErrorCodeSchema.safeParse(value);
+    return result.success ? result.data : undefined;
   }
 
   private asMessage(value: unknown): string | undefined {

@@ -16,7 +16,8 @@ export interface IdentityProviderAdapter {
 export interface SessionStore {
   create(identity: AuthenticatedIdentity): Promise<string>;
   revoke(sessionId: string): Promise<void>;
-  find(sessionId: string): Promise<AuthenticatedIdentity | null>;
+  /** Resolve an opaque cookie/session token without exposing its storage form. */
+  find(sessionToken: string): Promise<AuthenticatedIdentity | null>;
 }
 
 export interface CurrentIdentityAccessor {

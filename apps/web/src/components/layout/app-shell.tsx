@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Badge } from '@campus-skill-exchange/ui';
+import { AuthNavigation } from '../../features/auth/auth-navigation';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -23,14 +24,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/">Foundation</Link>
             <Link href="/health">Infrastructure health</Link>
           </nav>
-          <Badge tone="info">Foundation</Badge>
+          <AuthNavigation />
+          <Badge tone="info">Identity foundation</Badge>
         </div>
       </header>
       <main id="main-content" className="site-main">
         {children}
       </main>
       <footer className="site-footer">
-        <p>Campus Skill Exchange foundation infrastructure</p>
+        <p>Campus Skill Exchange identity foundation</p>
       </footer>
     </div>
   );

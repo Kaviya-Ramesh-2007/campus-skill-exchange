@@ -6,6 +6,9 @@ export type RuntimeEnvironment = (typeof runtimeEnvironments)[number];
 export const systemRoleSchema = z.enum(['USER', 'ADMIN']);
 export type SystemRole = z.infer<typeof systemRoleSchema>;
 
+export const accountStatusSchema = z.enum(['ACTIVE', 'SUSPENDED']);
+export type AccountStatus = z.infer<typeof accountStatusSchema>;
+
 export const idSchema = z.string().uuid();
 export type PublicId = z.infer<typeof idSchema>;
 
@@ -16,6 +19,13 @@ export const apiErrorCodeSchema = z.enum([
   'VALIDATION_ERROR',
   'BAD_REQUEST',
   'AUTHENTICATION_REQUIRED',
+  'AUTH_INVALID_CREDENTIALS',
+  'AUTH_SESSION_REQUIRED',
+  'AUTH_SESSION_EXPIRED',
+  'AUTH_ACCOUNT_SUSPENDED',
+  'AUTH_EMAIL_ALREADY_EXISTS',
+  'AUTH_INVALID_INPUT',
+  'AUTH_FORBIDDEN',
   'FORBIDDEN',
   'NOT_FOUND',
   'CONFLICT',
@@ -48,6 +58,50 @@ export const apiSuccessResponseSchema = z.object({
     .optional(),
 });
 export type ApiSuccessResponse = z.infer<typeof apiSuccessResponseSchema>;
+
+export const registerRequestSchema = z
+  .object({
+    displayName: z.string().trim().min(2).max(120),
+    email: z.string().trim().email().max(320),
+    password: z.string().min(12).max(128),
+  })
+  .strict();
+export type RegisterRequest = z.infer<typeof registerRequestSchema>;
+
+export const loginRequestSchema = z
+  .object({
+    email: z.string().trim().email().max(320),
+    password: z.string().min(1).max(128),
+  })
+  .strict();
+export type LoginRequest = z.infer<typeof loginRequestSchema>;
+
+export const authUserSchema = z
+  .object({
+    id: idSchema,
+    email: z.string().email(),
+    displayName: z.string(),
+    status: accountStatusSchema,
+    roles: z.array(systemRoleSchema),
+    createdAt: timestampSchema,
+  })
+  .strict();
+export type AuthUser = z.infer<typeof authUserSchema>;
+
+export const authSessionSchema = z
+  .object({
+    expiresAt: timestampSchema,
+  })
+  .strict();
+export type AuthSession = z.infer<typeof authSessionSchema>;
+
+export const authResponseSchema = z
+  .object({
+    user: authUserSchema,
+    session: authSessionSchema,
+  })
+  .strict();
+export type AuthResponse = z.infer<typeof authResponseSchema>;
 
 export const paginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

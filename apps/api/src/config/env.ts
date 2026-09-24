@@ -1,18 +1,39 @@
 import { z } from 'zod';
 
-const environmentSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  HOST: z.string().min(1).default('0.0.0.0'),
-  PORT: z.coerce.number().int().min(1).max(65535).default(3001),
-  DATABASE_URL: z
-    .string()
-    .min(1, 'DATABASE_URL is required.')
-    .refine((value: string) => /^postgres(?:ql)?:\/\//i.test(value), {
-      message: 'DATABASE_URL must be a PostgreSQL connection URL.',
-    }),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
-  CORS_ORIGINS: z.string().min(1).default('http://localhost:3000'),
-});
+const environmentSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    HOST: z.string().min(1).default('0.0.0.0'),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+    DATABASE_URL: z
+      .string()
+      .min(1, 'DATABASE_URL is required.')
+      .refine((value: string) => /^postgres(?:ql)?:\/\//i.test(value), {
+        message: 'DATABASE_URL must be a PostgreSQL connection URL.',
+      }),
+    LOG_LEVEL: z
+      .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+      .default('info'),
+    CORS_ORIGINS: z.string().min(1).default('http://localhost:3000'),
+    AUTH_SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(31536000).default(2592000),
+    AUTH_SESSION_COOKIE_NAME: z
+      .string()
+      .regex(
+        /^[A-Za-z0-9_-]+$/,
+        'Cookie name may contain only letters, numbers, underscores, and hyphens.',
+      )
+      .default('cse_session'),
+    AUTH_SESSION_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
+  })
+  .superRefine((config, context) => {
+    if (config.AUTH_SESSION_SAME_SITE === 'none' && config.NODE_ENV !== 'production') {
+      context.addIssue({
+        code: 'custom',
+        path: ['AUTH_SESSION_SAME_SITE'],
+        message: 'SameSite=None is only valid in production where Secure cookies are enabled.',
+      });
+    }
+  });
 
 export type ApiEnvironment = z.infer<typeof environmentSchema>;
 

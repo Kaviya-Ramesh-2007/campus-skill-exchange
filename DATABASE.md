@@ -2,13 +2,21 @@
 
 ## Current database foundation
 
-PostgreSQL is the only supported relational database. The Foundation schema contains one product-independent platform table:
+PostgreSQL is the only supported relational database. The Foundation schema contained one product-independent platform table:
 
 - `outbox_events`
 
-The Prisma schema is at `database/prisma/schema.prisma`. The first migration is at `database/prisma/migrations/20260924000000_outbox_foundation/migration.sql`.
+Prompt 1 adds the minimum identity/session tables:
 
-No product tables such as users, skills, sessions, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
+- `users`
+- `user_roles`
+- `auth_identities`
+- `password_credentials`
+- `sessions`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation and identity migrations are committed under `database/prisma/migrations/`; the Prompt 1 migration is `20260925000000_auth_identity_foundation/migration.sql`.
+
+No future product tables such as skills, learning goals, certifications, projects, sessions as a product workflow, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
 
 ## Configuration
 
@@ -19,6 +27,12 @@ postgresql://campus_skill_exchange:change-me@localhost:5432/campus_skill_exchang
 ```
 
 Never commit real credentials.
+
+## Identity and session tables
+
+Prompt 1 uses normalized lowercase email storage with a database check constraint and unique index. `UserRole` stores server-managed `USER` and `ADMIN` permissions. `AuthIdentity` separates provider identity from the internal user, and `PasswordCredential` stores only Argon2id hashes. `Session` stores only a SHA-256 hash of an opaque cookie token, with expiration and revocation timestamps.
+
+Registration never accepts a role from the request. The server creates the `USER` role in the same transaction as the local identity and credential.
 
 ## Prisma workflow
 

@@ -1,4 +1,4 @@
-name: Foundation CI
+name: Authentication and identity CI
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   foundation:
-    name: Foundation checks
+    name: Authentication and identity checks
     runs-on: ubuntu-latest
     env:
       NODE_VERSION: '24'

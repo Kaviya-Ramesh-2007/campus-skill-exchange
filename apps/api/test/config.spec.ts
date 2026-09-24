@@ -20,6 +20,16 @@ describe('API environment configuration', () => {
     expect(() => validateEnvironment({})).toThrow(/DATABASE_URL/);
   });
 
+  it('requires SameSite=None to be used only in production', () => {
+    expect(() =>
+      validateEnvironment({
+        NODE_ENV: 'development',
+        DATABASE_URL: 'postgresql://user:password@localhost:5432/campus?schema=public',
+        AUTH_SESSION_SAME_SITE: 'none',
+      }),
+    ).toThrow(/SameSite/);
+  });
+
   it('rejects wildcard credentialed CORS', () => {
     expect(() => parseCorsOrigins('*')).toThrow(/CORS_ORIGINS/);
   });

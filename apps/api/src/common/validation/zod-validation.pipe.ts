@@ -7,12 +7,13 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { z } from 'zod';
+import type { ApiErrorCode } from '@campus-skill-exchange/contracts';
 
 export const ZOD_SCHEMA_METADATA = 'campus-skill-exchange:zod-schema';
 
-export function ZodSchema(schema: z.ZodType) {
+export function ZodSchema(schema: z.ZodType, errorCode: ApiErrorCode = 'VALIDATION_ERROR') {
   return (target: object) => {
-    Reflect.defineMetadata(ZOD_SCHEMA_METADATA, schema, target);
+    Reflect.defineMetadata(ZOD_SCHEMA_METADATA, { schema, errorCode }, target);
   };
 }
 
@@ -24,13 +25,15 @@ export class ZodValidationPipe implements PipeTransform<unknown, unknown> {
     const metatype = metadata.metatype;
     if (!metatype) return value;
 
-    const schema = this.reflector.get<z.ZodType | undefined>(ZOD_SCHEMA_METADATA, metatype);
-    if (!schema) return value;
+    const definition = this.reflector.get<
+      { schema: z.ZodType; errorCode: ApiErrorCode } | undefined
+    >(ZOD_SCHEMA_METADATA, metatype);
+    if (!definition) return value;
 
-    const result = schema.safeParse(value);
+    const result = definition.schema.safeParse(value);
     if (!result.success) {
       throw new BadRequestException({
-        code: 'VALIDATION_ERROR',
+        code: definition.errorCode,
         message: 'Request validation failed.',
         details: result.error.flatten(),
       });
