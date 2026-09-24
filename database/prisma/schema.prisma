@@ -7,6 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SystemRole {
+  USER
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 enum OutboxProcessingStatus {
   PENDING
   PROCESSING
@@ -14,8 +24,86 @@ enum OutboxProcessingStatus {
   FAILED
 }
 
+/// A participant is always a User. System roles are authorization permissions,
+/// not participant identities.
+model User {
+  id                 String              @id @db.Uuid
+  /// Stored lowercase; the migration adds a database check constraint.
+  email              String              @db.VarChar(320)
+  displayName        String              @map("display_name") @db.VarChar(120)
+  accountStatus      AccountStatus       @default(ACTIVE) @map("account_status")
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  roles              UserRole[]
+  identities         AuthIdentity[]
+  passwordCredential PasswordCredential?
+  sessions           Session[]
+
+  @@unique([email])
+  @@index([accountStatus])
+  @@map("users")
+}
+
+/// Server-managed system authorization roles. Registration always creates USER;
+/// ADMIN is never accepted from a public registration request.
+model UserRole {
+  userId    String     @map("user_id") @db.Uuid
+  role      SystemRole @default(USER)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, role])
+  @@map("user_roles")
+}
+
+/// Provider identity is separate from the internal User record so OIDC can be
+/// added later without changing participant identity ownership.
+model AuthIdentity {
+  id              String   @id @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  provider        String   @db.VarChar(50)
+  providerSubject String   @map("provider_subject") @db.VarChar(255)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@index([userId])
+  @@map("auth_identities")
+}
+
+/// Password hashes are never returned by an API DTO. OIDC-only identities do
+/// not need a row in this table.
+model PasswordCredential {
+  id           String   @id @db.Uuid
+  userId       String   @unique @map("user_id") @db.Uuid
+  passwordHash String   @map("password_hash") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_credentials")
+}
+
+/// Only a hash of the opaque browser session token is persisted. The raw token
+/// exists only in the secure cookie sent to the client.
+model Session {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
 /// Minimal platform table for reliable publication of future domain events.
-/// Product entities are intentionally not part of the Foundation schema.
+/// Product entities are introduced incrementally by feature prompts.
 model OutboxEvent {
   id               String                @id @db.Uuid
   eventType        String                @map("event_type") @db.VarChar(120)

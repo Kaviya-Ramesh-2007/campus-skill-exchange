@@ -38,6 +38,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const fetchUrl = baseUrl.startsWith('http') ? url.toString() : `${url.pathname}${url.search}`;
   const response = await fetch(fetchUrl, {
     ...requestInit,
+    credentials: requestInit.credentials ?? 'include',
     headers: {
       Accept: 'application/json',
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -45,6 +46,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+
+  if (response.status === 204) return undefined as T;
 
   const responseBody = await response.json().catch(() => undefined);
   if (!response.ok) {

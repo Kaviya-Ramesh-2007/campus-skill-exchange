@@ -54,7 +54,11 @@ The Foundation does not implement a dispatcher, queue, or business event catalog
 
 ## External integrations
 
-OIDC, storage, email, meeting, payment, and AI providers are represented by interfaces or boundaries. No provider is connected or simulated during Foundation. Secrets remain server-side.
+OIDC, storage, email, meeting, payment, and AI providers are represented by interfaces or boundaries. Prompt 1 implements only the local password credential path; no external identity provider is connected or simulated. Secrets remain server-side.
+
+## Authentication boundary
+
+The auth module owns the internal `User`, local `AuthIdentity`, `PasswordCredential`, and revocable `Session` records. The browser receives an opaque HttpOnly cookie containing a random token; PostgreSQL stores only its hash. Future OIDC adapters map provider subjects to `AuthIdentity` without changing the internal User domain.
 
 ## Deployment direction
 

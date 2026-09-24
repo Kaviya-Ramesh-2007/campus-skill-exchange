@@ -2,9 +2,9 @@
 
 **Learn. Teach. Exchange. Grow.**
 
-Campus Skill Exchange is a planned peer-to-peer skill exchange platform for students and users. The repository currently contains the Foundation only: application shells, infrastructure contracts, database migration infrastructure, a minimal outbox table, accessible UI primitives, tests, CI, and documentation.
+Campus Skill Exchange is a planned peer-to-peer skill exchange platform for students and users. The repository contains the Foundation plus the first authentication/identity module: application shells, infrastructure contracts, database migrations, a minimal outbox, accessible UI primitives, secure local auth, tests, CI, and documentation.
 
-No product feature or external provider integration is implemented yet.
+No profile, skill, matching, exchange, payment, notification, or other product feature is implemented yet. No external identity provider is connected.
 
 ## Architecture summary
 
@@ -14,15 +14,15 @@ No product feature or external provider integration is implemented yet.
 - PostgreSQL with Prisma migrations
 - Shared API/error/pagination/event contracts
 - Transactional outbox foundation
-- OIDC-first authentication interfaces without login implementation
+- OIDC-first provider abstraction with secure local email/password authentication implemented in Prompt 1
 - One `User` identity with only `USER` and `ADMIN` system authorization roles
 
 ## Repository structure
 
 ```text
 apps/
-  api/       NestJS API foundation
-  web/       Next.js web foundation
+  api/       NestJS API and auth module
+  web/       Next.js web and auth routes
 packages/
   config/    Shared configuration primitives
   contracts/ Shared schemas and transport contracts
@@ -73,11 +73,15 @@ npm run db:deploy
 
 Use `npm run db:migrate` only for reviewed development migrations. Use `npm run db:reset` only against a disposable development database.
 
-## Health endpoints
+## Health and authentication endpoints
 
 - `GET /api/v1/health` checks API process liveness.
 - `GET /api/v1/ready` checks PostgreSQL readiness.
-- `GET /api/docs` exposes Foundation API documentation.
+- `POST /api/v1/auth/register` creates a local account and session.
+- `POST /api/v1/auth/login` authenticates an account.
+- `POST /api/v1/auth/logout` revokes the current session.
+- `GET /api/v1/auth/me` returns the current safe identity.
+- `GET /api/docs` exposes the synchronized API documentation.
 
 ## Documentation
 
@@ -97,4 +101,4 @@ Use `npm run db:migrate` only for reviewed development migrations. Use `npm run 
 
 ## Current boundary
 
-The following are intentionally absent: authentication flows, profiles, skills, goals, availability, certifications, projects, discovery, matching, exchanges, requests, sessions, meetings, ratings, assessments, badges, reputation, payments, transactions, notifications, dashboards, admin workflows, reports, analytics, and AI.
+The following are intentionally absent: profiles, skills, goals, availability, certifications, projects, discovery, matching, exchanges, requests, product sessions, meetings, ratings, assessments, badges, reputation, payments, transactions, notifications, dashboards, admin workflows, reports, analytics, and AI.

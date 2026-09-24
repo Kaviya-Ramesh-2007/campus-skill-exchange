@@ -1,3 +1,3 @@
 # Web application
 
-Next.js Foundation shell. It currently provides the root infrastructure page, health-route information, loading/error/not-found boundaries, and a typed API client foundation. Product pages are intentionally not implemented yet.
+Next.js shell. It provides the infrastructure page, local sign-in/registration routes, authenticated account context, health information, loading/error/not-found boundaries, and a typed API client foundation. Product feature pages are intentionally not implemented yet.

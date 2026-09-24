@@ -34,9 +34,17 @@ The only initial system authorization roles are:
 
 `ADMIN` is a system permission role, not a description of a participant's activity. Any future role requires an explicit architectural decision and migration plan.
 
-## Current Foundation scope
+Prompt 1 security rules:
 
-Foundation establishes:
+- Local passwords use Argon2id and are never returned or logged.
+- Authentication uses revocable opaque server-side sessions stored as token hashes.
+- The server is authoritative for the current user ID.
+- Public registration cannot assign `ADMIN`.
+- OIDC remains a provider abstraction; no external provider is claimed as connected.
+
+## Current scope
+
+The Foundation established the following infrastructure, and Prompt 1 adds the narrowly scoped authentication/identity implementation:
 
 - npm workspace structure;
 - TypeScript, ESLint, Prettier, test, and build tooling;
@@ -45,8 +53,8 @@ Foundation establishes:
 - configuration validation and structured logging;
 - health and readiness infrastructure;
 - PostgreSQL/Prisma migration infrastructure;
-- a minimal outbox table only;
-- authentication and authorization interfaces without implementing login;
+- a minimal outbox table and the Prompt 1 identity/session tables;
+- authentication and authorization interfaces, now extended by Prompt 1 with secure local registration, login, opaque server-side sessions, current-user retrieval, logout, and reusable role guards;
 - accessible UI primitives and application route boundaries;
 - tests, CI, Git workflow, and project documentation.
 

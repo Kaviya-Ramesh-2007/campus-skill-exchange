@@ -2,7 +2,7 @@
 
 ## Mission
 
-You are working on Campus Skill Exchange, a professional peer-to-peer skill exchange platform. Foundation is infrastructure only. Product features belong to their assigned future prompts.
+You are working on Campus Skill Exchange, a professional peer-to-peer skill exchange platform. The Foundation is infrastructure only; the assigned feature prompt may add only its narrowly scoped module. Product features belong to their assigned future prompts.
 
 ## Required workflow
 
@@ -48,7 +48,7 @@ Keep shared changes small, review them explicitly, and communicate breaking chan
 
 ## Foundation boundary
 
-The current Foundation may establish shells, contracts, infrastructure tables, health/readiness behavior, design primitives, tests, CI, and documentation. It must not add working product authentication, profiles, skills, matching, exchanges, requests, sessions, ratings, assessments, badges, reputation, payments, notifications, dashboards, admin workflows, reports, analytics, or AI.
+The Foundation itself may establish shells, contracts, infrastructure tables, health/readiness behavior, design primitives, tests, CI, and documentation. Prompt 1 is the first feature branch permitted to add the narrowly scoped authentication and identity foundation. No profile, skills, matching, exchanges, requests, product sessions, ratings, assessments, badges, reputation, payments, notifications, dashboards, admin workflows, reports, analytics, or AI may be added during Foundation.
 
 ## Completion checklist
 

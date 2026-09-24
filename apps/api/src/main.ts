@@ -5,6 +5,7 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { VersioningType } from '@nestjs/common';
+import fastifyCookie from '@fastify/cookie';
 import { ZodValidationPipe } from './common/validation/zod-validation.pipe';
 import { parseCorsOrigins } from './config/env';
 import { AppModule } from './app.module';
@@ -17,6 +18,7 @@ async function bootstrap(): Promise<void> {
   });
   const config = app.get(ConfigService);
   const logger = app.get(AppLogger);
+  await app.getHttpAdapter().getInstance().register(fastifyCookie);
 
   app.useLogger(logger);
   app.setGlobalPrefix('api');
@@ -31,9 +33,10 @@ async function bootstrap(): Promise<void> {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Campus Skill Exchange API')
     .setDescription(
-      'Foundation infrastructure API. Product endpoints are intentionally not implemented yet.',
+      'Campus Skill Exchange API. Authentication and identity endpoints are implemented locally; other product modules remain future work.',
     )
     .setVersion('0.0.0')
+    .addCookieAuth(config.getOrThrow<string>('AUTH_SESSION_COOKIE_NAME'))
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, swaggerDocument);

@@ -70,6 +70,18 @@ Default URLs:
 
 The API can start without a reachable database so liveness remains useful. Readiness will return `503` until PostgreSQL responds.
 
+## Authentication development
+
+Prompt 1 uses local email/password authentication and an opaque server-side session cookie. Configure the session values in `.env`:
+
+```text
+AUTH_SESSION_TTL_SECONDS=2592000
+AUTH_SESSION_COOKIE_NAME=cse_session
+AUTH_SESSION_SAME_SITE=lax
+```
+
+The API must be reached through the same-origin web proxy for browser authentication. Passwords are never returned or logged. OIDC configuration remains deferred; do not add provider secrets or claim a provider is connected without a later implementation.
+
 ## Quality commands
 
 ```bash
