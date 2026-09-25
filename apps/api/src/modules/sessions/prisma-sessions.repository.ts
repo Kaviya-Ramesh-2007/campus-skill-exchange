@@ -1,8 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import type {
   CreateSession,
   EventEnvelope,
   SessionEventPayload,
+  SessionReminderEventPayload,
+  SessionReminderType,
   SessionStatus,
 } from '@campus-skill-exchange/contracts';
 import type { Prisma } from '@campus-skill-exchange/database';
@@ -16,7 +19,9 @@ import {
   type SessionRecord,
   type SessionRequestRecord,
   type SessionsRepository,
+  type SessionUpdate,
 } from './sessions.types';
+import { reminderDefinition, reminderTimesFor, SESSION_REMINDER_TYPES } from './session-reminders';
 
 const sessionInclude = {
   host: {
@@ -124,6 +129,7 @@ export class PrismaSessionsRepository implements SessionsRepository {
           include: sessionInclude,
         });
         await this.outboxWriter.enqueue(event, tx);
+        await this.createReminders(tx, row);
         return this.mapSession(row);
       });
     } catch (error) {
@@ -134,23 +140,105 @@ export class PrismaSessionsRepository implements SessionsRepository {
     }
   }
 
-  async updateStatus(
+  async update(
     id: string,
     fromStatus: SessionStatus,
-    toStatus: SessionStatus,
+    update: SessionUpdate,
     events: EventEnvelope<SessionEventPayload>[],
+    scheduleChanged: boolean,
   ): Promise<SessionRecord | null> {
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.learningSession.updateMany({
         where: { id, status: fromStatus },
-        data: { status: toStatus },
+        data: update as Prisma.LearningSessionUpdateInput,
       });
       if (updated.count === 0) return null;
       const row = await tx.learningSession.findUnique({ where: { id }, include: sessionInclude });
       if (!row) throw new Error('Updated Session could not be reloaded.');
       for (const event of events) await this.outboxWriter.enqueue(event, tx);
+      if (row.status !== 'SCHEDULED') {
+        await tx.sessionReminder.updateMany({
+          where: { sessionId: id, status: 'PENDING' },
+          data: { status: 'CANCELLED' },
+        });
+      } else if (scheduleChanged) {
+        await this.rescheduleReminders(tx, row);
+      }
       return this.mapSession(row);
     });
+  }
+
+  private async createReminders(
+    tx: Prisma.TransactionClient,
+    session: { id: string; scheduledStart: Date },
+  ): Promise<void> {
+    const times = reminderTimesFor(session.scheduledStart);
+    for (const reminderType of SESSION_REMINDER_TYPES) {
+      const reminder = await tx.sessionReminder.create({
+        data: {
+          id: randomUUID(),
+          sessionId: session.id,
+          reminderType,
+          scheduledFor: times[reminderType],
+        },
+      });
+      await this.outboxWriter.enqueue(this.reminderEvent(reminder), tx);
+    }
+  }
+
+  private async rescheduleReminders(
+    tx: Prisma.TransactionClient,
+    session: { id: string; scheduledStart: Date },
+  ): Promise<void> {
+    const times = reminderTimesFor(session.scheduledStart);
+    for (const reminderType of SESSION_REMINDER_TYPES) {
+      const existing = await tx.sessionReminder.findUnique({
+        where: { sessionId_reminderType: { sessionId: session.id, reminderType } },
+        select: { id: true },
+      });
+      const reminder = existing
+        ? await tx.sessionReminder.update({
+            where: { id: existing.id },
+            data: { scheduledFor: times[reminderType], status: 'PENDING', sentAt: null },
+          })
+        : await tx.sessionReminder.create({
+            data: {
+              id: randomUUID(),
+              sessionId: session.id,
+              reminderType,
+              scheduledFor: times[reminderType],
+            },
+          });
+      await this.outboxWriter.enqueue(this.reminderEvent(reminder), tx);
+    }
+  }
+
+  private reminderEvent(reminder: {
+    id: string;
+    sessionId: string;
+    reminderType: SessionReminderType;
+    scheduledFor: Date;
+  }): EventEnvelope<SessionReminderEventPayload> {
+    const definition = reminderDefinition(reminder.reminderType);
+    const eventId = randomUUID();
+    return {
+      eventId,
+      eventType: definition.name,
+      version: definition.version,
+      occurredAt: new Date().toISOString(),
+      actorId: null,
+      entityType: 'SessionReminder',
+      entityId: reminder.id,
+      correlationId: null,
+      causationId: null,
+      idempotencyKey: `session-reminder:${reminder.reminderType}:${reminder.id}:${eventId}`,
+      payload: {
+        reminderId: reminder.id,
+        sessionId: reminder.sessionId,
+        reminderType: reminder.reminderType,
+        scheduledFor: reminder.scheduledFor.toISOString(),
+      },
+    };
   }
 
   private mapSession(row: SessionWithRelations): SessionRecord {

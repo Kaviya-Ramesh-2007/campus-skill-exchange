@@ -71,6 +71,19 @@ enum LearningSessionStatus {
   NO_SHOW
 }
 
+enum SessionReminderType {
+  TWENTY_FOUR_HOURS
+  ONE_HOUR
+  TEN_MINUTES
+}
+
+enum SessionReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
 enum OutboxProcessingStatus {
   PENDING
   PROCESSING
@@ -290,11 +303,29 @@ model LearningSession {
   host              User                  @relation("LearningSessionHost", fields: [hostUserId], references: [id], onDelete: Cascade)
   participant       User                  @relation("LearningSessionParticipant", fields: [participantUserId], references: [id], onDelete: Cascade)
   skill             Skill?                @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  reminders         SessionReminder[]
 
   @@index([hostUserId, status, scheduledStart])
   @@index([participantUserId, status, scheduledStart])
   @@index([scheduledStart])
   @@map("learning_sessions")
+}
+
+/// A future-dated reminder record. Delivery is intentionally not implemented.
+model SessionReminder {
+  id           String                @id @db.Uuid
+  sessionId    String                @map("session_id") @db.Uuid
+  reminderType SessionReminderType   @map("reminder_type")
+  scheduledFor DateTime              @map("scheduled_for") @db.Timestamptz(6)
+  status       SessionReminderStatus @default(PENDING)
+  sentAt       DateTime?             @map("sent_at") @db.Timestamptz(6)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  session      LearningSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, reminderType])
+  @@index([status, scheduledFor])
+  @@map("session_reminders")
 }
 
 /// Server-managed system authorization roles. Registration always creates USER;

@@ -34,6 +34,9 @@ import {
   sessionCompletedEventDefinition,
   sessionCancelledEventDefinition,
   sessionNoShowEventDefinition,
+  sessionReminder24hEventDefinition,
+  sessionReminder1hEventDefinition,
+  sessionReminder10mEventDefinition,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -299,6 +302,25 @@ describe('shared contracts', () => {
     expect(
       createSessionSchema.safeParse({
         sessionRequestId,
+        mode: 'OFFLINE',
+        scheduledStart: timestamp,
+        scheduledEnd: '2026-09-30T11:00:00.000Z',
+        timezone: 'UTC',
+      }).success,
+    ).toBe(false);
+    expect(
+      createSessionSchema.safeParse({
+        sessionRequestId,
+        mode: 'OFFLINE',
+        scheduledStart: timestamp,
+        scheduledEnd: '2026-09-30T11:00:00.000Z',
+        timezone: 'UTC',
+        locationDetails: 'MIT Campus Library',
+      }).success,
+    ).toBe(true);
+    expect(
+      createSessionSchema.safeParse({
+        sessionRequestId,
         mode: 'ONLINE',
         scheduledStart: timestamp,
         scheduledEnd: '2026-09-30T11:00:00.000Z',
@@ -345,6 +367,19 @@ describe('shared contracts', () => {
       sessionNoShowEventDefinition,
     ]) {
       expect(definition.payloadSchema.safeParse(payload).success).toBe(true);
+    }
+    const reminderPayload = {
+      reminderId: '00000000-0000-4000-8000-000000000006',
+      sessionId,
+      reminderType: 'ONE_HOUR',
+      scheduledFor: '2026-09-30T09:00:00.000Z',
+    };
+    for (const definition of [
+      sessionReminder24hEventDefinition,
+      sessionReminder1hEventDefinition,
+      sessionReminder10mEventDefinition,
+    ]) {
+      expect(definition.payloadSchema.safeParse(reminderPayload).success).toBe(true);
     }
   });
 

@@ -26,6 +26,7 @@ import {
   type SessionRecord,
   type SessionRequestRecord,
   type SessionsRepository,
+  type SessionUpdate,
 } from './sessions.types';
 
 @Injectable()
@@ -78,12 +79,79 @@ export class SessionsService {
     const existing = await this.repository.findById(sessionId);
     if (!existing) throw new ApiException(404, 'NOT_FOUND', 'The session was not found.');
     this.assertParticipant(existing, userId);
-    this.assertTransition(existing.status, data.status);
+    if (existing.status !== 'SCHEDULED' && !data.status) {
+      throw new ApiException(409, 'CONFLICT', 'Only scheduled Sessions can change agreed details.');
+    }
+    if (
+      existing.status !== 'SCHEDULED' &&
+      (data.locationDetails !== undefined ||
+        data.meetingUrl !== undefined ||
+        data.scheduledStart !== undefined ||
+        data.scheduledEnd !== undefined ||
+        data.timezone !== undefined)
+    ) {
+      throw new ApiException(409, 'CONFLICT', 'Only scheduled Sessions can change agreed details.');
+    }
+    if (data.status) this.assertTransition(existing.status, data.status);
 
-    const updated = await this.repository.updateStatus(sessionId, existing.status, data.status, [
-      this.createStatusEvent(userId, existing, data.status, sessionUpdatedEventDefinition),
-      this.createStatusEvent(userId, existing, data.status, this.definitionFor(data.status)),
-    ]);
+    const scheduledStart = data.scheduledStart
+      ? new Date(data.scheduledStart)
+      : existing.scheduledStart;
+    const scheduledEnd = data.scheduledEnd ? new Date(data.scheduledEnd) : existing.scheduledEnd;
+    if (scheduledStart.getTime() >= scheduledEnd.getTime()) {
+      throw new ApiException(
+        400,
+        'VALIDATION_ERROR',
+        'scheduledStart must be before scheduledEnd.',
+      );
+    }
+    const locationDetails =
+      data.locationDetails !== undefined ? data.locationDetails : existing.locationDetails;
+    if (existing.mode === 'OFFLINE' && !locationDetails) {
+      throw new ApiException(400, 'VALIDATION_ERROR', 'OFFLINE sessions require locationDetails.');
+    }
+    if (existing.mode === 'OFFLINE' && data.meetingUrl) {
+      throw new ApiException(400, 'VALIDATION_ERROR', 'OFFLINE sessions cannot use a meeting URL.');
+    }
+    const timezone = data.timezone ?? existing.timezone;
+    const nextStatus = data.status ?? existing.status;
+    const scheduleChanged =
+      scheduledStart.getTime() !== existing.scheduledStart.getTime() ||
+      scheduledEnd.getTime() !== existing.scheduledEnd.getTime();
+    const nextForEvent: SessionRecord = {
+      ...existing,
+      status: nextStatus,
+      scheduledStart,
+      scheduledEnd,
+      timezone,
+    };
+    const update: SessionUpdate = {
+      ...(data.status ? { status: data.status } : {}),
+      ...(data.locationDetails !== undefined ? { locationDetails } : {}),
+      ...(data.meetingUrl !== undefined ? { meetingUrl: data.meetingUrl } : {}),
+      ...(scheduleChanged ? { scheduledStart, scheduledEnd } : {}),
+      ...(data.timezone !== undefined ? { timezone } : {}),
+    };
+    const events = [
+      this.createStatusEvent(userId, nextForEvent, nextStatus, sessionUpdatedEventDefinition),
+      ...(data.status
+        ? [
+            this.createStatusEvent(
+              userId,
+              nextForEvent,
+              data.status,
+              this.definitionFor(data.status),
+            ),
+          ]
+        : []),
+    ];
+    const updated = await this.repository.update(
+      sessionId,
+      existing.status,
+      update,
+      events,
+      scheduleChanged,
+    );
     if (!updated)
       throw new ApiException(409, 'CONFLICT', 'The session changed before it could be updated.');
     return this.toResponse(updated);
