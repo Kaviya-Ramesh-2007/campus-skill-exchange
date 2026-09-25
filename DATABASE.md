@@ -23,9 +23,16 @@ Prompt 3 adds the skill catalog and user-skill association tables:
 - `skills`
 - `user_skills`
 
-The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, and skill migrations are committed under `database/prisma/migrations/`; the skill migration is `20260927000000_skill_user_skill_foundation/migration.sql`.
+Prompt 4 adds the user-owned development and portfolio tables:
 
-No later product tables such as learning goals, certifications, projects, sessions as a product workflow, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
+- `learning_goals`
+- `availability`
+- `certifications`
+- `projects`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, and development migrations are committed under `database/prisma/migrations/`; the Prompt 4 migration is `20260928000000_learning_availability_certification_project_foundation/migration.sql`.
+
+No later product tables such as sessions as a product workflow, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
 
 ## Configuration
 

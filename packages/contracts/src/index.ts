@@ -204,6 +204,207 @@ export const profileResponseSchema = z
   .strict();
 export type Profile = z.infer<typeof profileResponseSchema>;
 
+export const skillProficiencySchema = z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']);
+export type SkillProficiency = z.infer<typeof skillProficiencySchema>;
+export const learningPrioritySchema = z.enum(['LOW', 'MEDIUM', 'HIGH']);
+export type LearningPriority = z.infer<typeof learningPrioritySchema>;
+export const dayOfWeekSchema = z.enum([
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+  'SUNDAY',
+]);
+export type DayOfWeek = z.infer<typeof dayOfWeekSchema>;
+export const certificationStatusSchema = z.enum(['PENDING', 'VERIFIED', 'REJECTED']);
+export type CertificationStatus = z.infer<typeof certificationStatusSchema>;
+
+export const externalUrlSchema = profileUrlSchema;
+const dateOnlySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use an ISO date (YYYY-MM-DD).')
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }, 'Use a valid calendar date.');
+const timeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Use 24-hour HH:mm time.');
+const optionalExternalUrlSchema = externalUrlSchema.nullable().optional();
+const optionalDateSchema = dateOnlySchema.nullable().optional();
+const requiredTextSchema = (maxLength: number) => profileTextSchema(maxLength);
+const optionalTextFieldSchema = (maxLength: number) =>
+  profileTextSchema(maxLength).nullable().optional();
+
+const dateRangeRefinement = (
+  value: { issueDate?: string | null; expiryDate?: string | null },
+  ctx: { addIssue: (issue: { code: 'custom'; message: string; path: string[] }) => void },
+) => {
+  if (value.issueDate && value.expiryDate && value.expiryDate < value.issueDate) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Expiry date cannot be before issue date.',
+      path: ['expiryDate'],
+    });
+  }
+};
+
+export const createLearningGoalRequestSchema = z
+  .object({
+    skillId: idSchema,
+    currentLevel: skillProficiencySchema.default('BEGINNER'),
+    targetLevel: skillProficiencySchema,
+    description: optionalTextFieldSchema(2000),
+    priority: learningPrioritySchema.default('MEDIUM'),
+  })
+  .strict();
+export type CreateLearningGoalRequest = z.infer<typeof createLearningGoalRequestSchema>;
+export const updateLearningGoalRequestSchema = createLearningGoalRequestSchema
+  .partial()
+  .strict()
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    'At least one learning goal field is required.',
+  );
+export type UpdateLearningGoalRequest = z.infer<typeof updateLearningGoalRequestSchema>;
+export const learningGoalResponseSchema = z
+  .object({
+    id: idSchema,
+    userId: idSchema,
+    skillId: idSchema,
+    skillName: z.string(),
+    currentLevel: skillProficiencySchema,
+    targetLevel: skillProficiencySchema,
+    description: z.string().nullable(),
+    priority: learningPrioritySchema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type LearningGoal = z.infer<typeof learningGoalResponseSchema>;
+
+export const createAvailabilityRequestSchema = z
+  .object({
+    dayOfWeek: dayOfWeekSchema,
+    startTime: timeSchema,
+    endTime: timeSchema,
+    timezone: z.string().trim().min(1).max(64).default('UTC'),
+    isActive: z.boolean().default(true),
+  })
+  .strict()
+  .refine((value) => value.startTime < value.endTime, 'Start time must be before end time.');
+export type CreateAvailabilityRequest = z.infer<typeof createAvailabilityRequestSchema>;
+export const updateAvailabilityRequestSchema = createAvailabilityRequestSchema
+  .partial()
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, 'At least one availability field is required.')
+  .refine(
+    (value) => !value.startTime || !value.endTime || value.startTime < value.endTime,
+    'Start time must be before end time.',
+  );
+export type UpdateAvailabilityRequest = z.infer<typeof updateAvailabilityRequestSchema>;
+export const availabilityResponseSchema = z
+  .object({
+    id: idSchema,
+    userId: idSchema,
+    dayOfWeek: dayOfWeekSchema,
+    startTime: timeSchema,
+    endTime: timeSchema,
+    timezone: z.string(),
+    isActive: z.boolean(),
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type Availability = z.infer<typeof availabilityResponseSchema>;
+
+export const createCertificationRequestSchema = z
+  .object({
+    title: requiredTextSchema(160),
+    issuingOrganization: requiredTextSchema(160),
+    credentialId: optionalTextFieldSchema(160),
+    issueDate: optionalDateSchema,
+    expiryDate: optionalDateSchema,
+    proofUrl: optionalExternalUrlSchema,
+  })
+  .strict()
+  .superRefine(dateRangeRefinement);
+export type CreateCertificationRequest = z.infer<typeof createCertificationRequestSchema>;
+export const updateCertificationRequestSchema = createCertificationRequestSchema
+  .partial()
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, 'At least one certification field is required.')
+  .superRefine(dateRangeRefinement);
+export type UpdateCertificationRequest = z.infer<typeof updateCertificationRequestSchema>;
+export const certificationResponseSchema = z
+  .object({
+    id: idSchema,
+    userId: idSchema,
+    title: z.string(),
+    issuingOrganization: z.string(),
+    credentialId: z.string().nullable(),
+    issueDate: dateOnlySchema.nullable(),
+    expiryDate: dateOnlySchema.nullable(),
+    proofUrl: externalUrlSchema.nullable(),
+    status: certificationStatusSchema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type Certification = z.infer<typeof certificationResponseSchema>;
+
+export const createProjectRequestSchema = z
+  .object({
+    title: requiredTextSchema(160),
+    description: requiredTextSchema(4000),
+    technologies: z.array(z.string().trim().min(1).max(50)).max(30).default([]),
+    projectUrl: optionalExternalUrlSchema,
+    repositoryUrl: optionalExternalUrlSchema,
+    startDate: optionalDateSchema,
+    endDate: optionalDateSchema,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.startDate && value.endDate && value.endDate < value.startDate) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'End date cannot be before start date.',
+        path: ['endDate'],
+      });
+    }
+  });
+export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
+export const updateProjectRequestSchema = createProjectRequestSchema
+  .partial()
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, 'At least one project field is required.')
+  .superRefine((value, ctx) => {
+    if (value.startDate && value.endDate && value.endDate < value.startDate) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'End date cannot be before start date.',
+        path: ['endDate'],
+      });
+    }
+  });
+export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
+export const projectResponseSchema = z
+  .object({
+    id: idSchema,
+    userId: idSchema,
+    title: z.string(),
+    description: z.string(),
+    technologies: z.array(z.string()),
+    projectUrl: externalUrlSchema.nullable(),
+    repositoryUrl: externalUrlSchema.nullable(),
+    startDate: dateOnlySchema.nullable(),
+    endDate: dateOnlySchema.nullable(),
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type Project = z.infer<typeof projectResponseSchema>;
+
 export const profileUpdatedEventPayloadSchema = z
   .object({
     profileId: idSchema,

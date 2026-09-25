@@ -444,6 +444,59 @@ a {
   gap: 0.75rem;
   padding-top: 0.5rem;
 }
+.portfolio-page {
+  max-width: 64rem;
+}
+.portfolio-form {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--cse-color-border);
+}
+.portfolio-form__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+.portfolio-field {
+  display: grid;
+  gap: 0.35rem;
+}
+.portfolio-field > span {
+  color: var(--cse-color-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.portfolio-field select,
+.portfolio-field textarea {
+  width: 100%;
+  border: 1px solid var(--cse-color-border);
+  border-radius: var(--cse-radius-sm);
+  background: var(--cse-color-surface);
+  color: var(--cse-color-ink);
+  font: inherit;
+  padding: 0.65rem 0.75rem;
+}
+.portfolio-field textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+.portfolio-field select:focus,
+.portfolio-field textarea:focus {
+  border-color: var(--cse-color-primary);
+  outline: 3px solid var(--cse-color-focus);
+  outline-offset: 1px;
+}
+.portfolio-list,
+.portfolio-empty {
+  margin: 0;
+  color: var(--cse-color-muted);
+  line-height: 1.6;
+}
+.portfolio-list {
+  padding-left: 1.25rem;
+}
 
 @media (max-width: 700px) {
   .auth-nav-links {
@@ -468,7 +521,8 @@ a {
     margin-left: auto;
   }
   .profile-facts,
-  .profile-form__grid {
+  .profile-form__grid,
+  .portfolio-form__row {
     grid-template-columns: 1fr;
   }
   .profile-hero {

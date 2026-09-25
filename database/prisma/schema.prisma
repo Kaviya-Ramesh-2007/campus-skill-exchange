@@ -29,6 +29,28 @@ enum SkillProficiency {
   EXPERT
 }
 
+enum LearningPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum CertificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 enum OutboxProcessingStatus {
   PENDING
   PROCESSING
@@ -52,6 +74,10 @@ model User {
   sessions           Session[]
   profile            Profile?
   userSkills         UserSkill[]
+  learningGoals      LearningGoal[]
+  availabilitySlots  Availability[]
+  certifications     Certification[]
+  projects           Project[]
 
   @@unique([email])
   @@index([accountStatus])
@@ -91,6 +117,7 @@ model Skill {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   userSkills     UserSkill[]
+  learningGoals  LearningGoal[]
 
   @@index([name])
   @@map("skills")
@@ -116,6 +143,82 @@ model UserSkill {
   @@index([userId, canTeach])
   @@index([skillId, canTeach])
   @@map("user_skills")
+}
+
+/// A user's desired growth direction for one catalog skill.
+model LearningGoal {
+  id           String           @id @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  skillId      String           @map("skill_id") @db.Uuid
+  currentLevel SkillProficiency @default(BEGINNER) @map("current_level")
+  targetLevel  SkillProficiency @map("target_level")
+  description  String?          @db.VarChar(2000)
+  priority     LearningPriority @default(MEDIUM)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill        Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@index([skillId])
+  @@index([userId, priority])
+  @@map("learning_goals")
+}
+
+/// A recurring weekly availability slot owned by a User.
+model Availability {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  dayOfWeek DayOfWeek @map("day_of_week")
+  startTime String    @map("start_time") @db.VarChar(5)
+  endTime   String    @map("end_time") @db.VarChar(5)
+  timezone  String    @default("UTC") @db.VarChar(64)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOfWeek, startTime, endTime, timezone])
+  @@index([userId, dayOfWeek, isActive])
+  @@map("availability")
+}
+
+/// A user-submitted certification. Verification is always an explicit future workflow.
+model Certification {
+  id                  String              @id @db.Uuid
+  userId              String              @map("user_id") @db.Uuid
+  title               String              @db.VarChar(160)
+  issuingOrganization String              @map("issuing_organization") @db.VarChar(160)
+  credentialId        String?             @map("credential_id") @db.VarChar(160)
+  issueDate           DateTime?           @map("issue_date") @db.Date
+  expiryDate          DateTime?           @map("expiry_date") @db.Date
+  proofUrl            String?             @map("proof_url") @db.VarChar(2048)
+  status              CertificationStatus @default(PENDING)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("certifications")
+}
+
+/// A user-owned portfolio project; demonstrated skills remain contextual data.
+model Project {
+  id            String    @id @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  title         String    @db.VarChar(160)
+  description   String    @db.VarChar(4000)
+  technologies  String[]  @default([])
+  projectUrl    String?   @map("project_url") @db.VarChar(2048)
+  repositoryUrl String?   @map("repository_url") @db.VarChar(2048)
+  startDate     DateTime? @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+  @@map("projects")
 }
 
 /// Server-managed system authorization roles. Registration always creates USER;
