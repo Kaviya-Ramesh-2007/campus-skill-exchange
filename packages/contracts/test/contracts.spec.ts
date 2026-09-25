@@ -14,6 +14,8 @@ import {
   createAvailabilityRequestSchema,
   createCertificationRequestSchema,
   createProjectRequestSchema,
+  discoveryUserQuerySchema,
+  discoveryUserSchema,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -152,6 +154,28 @@ describe('shared contracts', () => {
         projectUrl: 'javascript:alert(1)',
         startDate: '2026-02-01',
         endDate: '2026-01-01',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('validates discovery queries and keeps private fields out of results', () => {
+    expect(discoveryUserQuerySchema.parse({ skill: 'Java', page: '2', limit: '10' })).toEqual({
+      skill: 'Java',
+      page: 2,
+      limit: 10,
+    });
+    expect(discoveryUserQuerySchema.safeParse({ page: 1, limit: 10 }).success).toBe(false);
+    expect(discoveryUserQuerySchema.safeParse({ skill: 'Java', limit: 101 }).success).toBe(false);
+    expect(
+      discoveryUserSchema.safeParse({
+        userId: '00000000-0000-4000-8000-000000000001',
+        displayName: 'Ada',
+        profileImageUrl: null,
+        department: null,
+        institution: null,
+        bio: null,
+        skills: [],
+        email: 'must-not@example.test',
       }).success,
     ).toBe(false);
   });

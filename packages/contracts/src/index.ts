@@ -450,6 +450,44 @@ export const createPaginatedResponseSchema = <T extends z.ZodType>(itemSchema: T
       .optional(),
   });
 
+export const discoveryUserQuerySchema = z
+  .object({
+    skill: z.string().trim().min(1).max(120).optional(),
+    search: z.string().trim().min(1).max(120).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict()
+  .refine((value) => Boolean(value.skill || value.search), {
+    message: 'Provide skill or search.',
+  });
+export type DiscoveryUserQuery = z.infer<typeof discoveryUserQuerySchema>;
+
+export const discoverySkillSchema = z
+  .object({
+    id: idSchema,
+    name: z.string(),
+    proficiency: skillProficiencySchema,
+    description: z.string().nullable(),
+  })
+  .strict();
+export type DiscoverySkill = z.infer<typeof discoverySkillSchema>;
+
+export const discoveryUserSchema = z
+  .object({
+    userId: idSchema,
+    displayName: z.string(),
+    profileImageUrl: z.string().nullable(),
+    department: z.string().nullable(),
+    institution: z.string().nullable(),
+    bio: z.string().nullable(),
+    skills: z.array(discoverySkillSchema),
+  })
+  .strict();
+export type DiscoveryUser = z.infer<typeof discoveryUserSchema>;
+
+export const discoveryUsersResponseSchema = createPaginatedResponseSchema(discoveryUserSchema);
+
 export const eventTypeSchema = z.string().regex(/^[A-Z][A-Z0-9_]*$/, {
   message: 'Event types must use UPPER_SNAKE_CASE.',
 });

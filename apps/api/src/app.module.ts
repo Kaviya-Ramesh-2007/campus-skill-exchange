@@ -9,6 +9,7 @@ import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { GrowthModule } from './modules/growth/growth.module';
+import { DiscoveryModule } from './modules/discovery/discovery.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { GrowthModule } from './modules/growth/growth.module';
     AuthModule,
     UsersModule,
     GrowthModule,
+    DiscoveryModule,
   ],
   providers: [AppLogger, { provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })
