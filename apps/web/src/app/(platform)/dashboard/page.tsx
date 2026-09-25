@@ -197,10 +197,12 @@ export default function DashboardPage() {
                 const other = session.host.userId === user.id ? session.participant : session.host;
                 return (
                   <li key={session.id}>
-                    <strong>{session.skill?.name ?? 'Skill exchange session'}</strong>
-                    <span>
-                      {formatWhen(session.scheduledStart)} with {other.displayName}
-                    </span>
+                    <Link className="dashboard-session-link" href={`/sessions/${session.id}`}>
+                      <strong>{session.skill?.name ?? 'Skill exchange session'}</strong>
+                      <span>
+                        {formatWhen(session.scheduledStart)} with {other.displayName}
+                      </span>
+                    </Link>
                   </li>
                 );
               })}
