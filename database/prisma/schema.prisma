@@ -58,6 +58,19 @@ enum SessionRequestStatus {
   CANCELLED
 }
 
+enum LearningSessionMode {
+  ONLINE
+  OFFLINE
+}
+
+enum LearningSessionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 enum OutboxProcessingStatus {
   PENDING
   PROCESSING
@@ -87,6 +100,8 @@ model User {
   projects           Project[]
   sentSessionRequests SessionRequest[] @relation("SessionRequester")
   receivedSessionRequests SessionRequest[] @relation("SessionRequestRecipient")
+  hostedLearningSessions LearningSession[] @relation("LearningSessionHost")
+  participatingLearningSessions LearningSession[] @relation("LearningSessionParticipant")
 
   @@unique([email])
   @@index([accountStatus])
@@ -128,6 +143,7 @@ model Skill {
   userSkills     UserSkill[]
   learningGoals  LearningGoal[]
   sessionRequests SessionRequest[] @relation("SessionRequestSkill")
+  learningSessions LearningSession[]
 
   @@index([name])
   @@map("skills")
@@ -245,11 +261,40 @@ model SessionRequest {
   requester       User                 @relation("SessionRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
   recipient       User                 @relation("SessionRequestRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
   skill           Skill?               @relation("SessionRequestSkill", fields: [skillId], references: [id], onDelete: SetNull)
+  learningSession  LearningSession?
 
   @@index([requesterUserId, status, createdAt])
   @@index([recipientUserId, status, createdAt])
   @@index([skillId])
   @@map("session_requests")
+}
+
+/// A scheduled learning session created from an accepted SessionRequest.
+/// The authentication `Session` model remains separate and owns cookie tokens.
+model LearningSession {
+  id                String                @id @db.Uuid
+  sessionRequestId  String                @unique @map("session_request_id") @db.Uuid
+  hostUserId        String                @map("host_user_id") @db.Uuid
+  participantUserId String                @map("participant_user_id") @db.Uuid
+  skillId           String?               @map("skill_id") @db.Uuid
+  mode              LearningSessionMode
+  status            LearningSessionStatus @default(SCHEDULED)
+  scheduledStart    DateTime              @map("scheduled_start") @db.Timestamptz(6)
+  scheduledEnd      DateTime              @map("scheduled_end") @db.Timestamptz(6)
+  timezone          String                @db.VarChar(64)
+  meetingUrl        String?               @map("meeting_url") @db.VarChar(2048)
+  locationDetails   String?               @map("location_details") @db.VarChar(1000)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sessionRequest    SessionRequest        @relation(fields: [sessionRequestId], references: [id], onDelete: Restrict)
+  host              User                  @relation("LearningSessionHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  participant       User                  @relation("LearningSessionParticipant", fields: [participantUserId], references: [id], onDelete: Cascade)
+  skill             Skill?                @relation(fields: [skillId], references: [id], onDelete: SetNull)
+
+  @@index([hostUserId, status, scheduledStart])
+  @@index([participantUserId, status, scheduledStart])
+  @@index([scheduledStart])
+  @@map("learning_sessions")
 }
 
 /// Server-managed system authorization roles. Registration always creates USER;

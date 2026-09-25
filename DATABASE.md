@@ -34,9 +34,13 @@ The Session Request data store adds:
 
 - `session_requests`
 
-The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, and Session Request migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql`.
+The Session Core data store adds:
 
-No product Session scheduling table, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
+- `learning_sessions`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, Session Request, and Session Core migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql` and the Session Core migration is `20260930000000_learning_session_core/migration.sql`.
+
+The `sessions` table remains the authentication cookie-token store. Product scheduling, ratings, assessments, badges, payments, notifications, and reports are introduced incrementally by their owning feature prompts.
 
 ## Configuration
 
@@ -63,6 +67,10 @@ Profile URLs are stored as bounded `VARCHAR(2048)` references and are validated 
 ## Session Request table
 
 `session_requests` stores direct requests between two existing `users` without introducing a product Session or scheduling workflow. The requester and recipient foreign keys cascade when a User is removed; the optional Skill foreign key uses `SET NULL` so a request remains valid when its referenced Skill is removed. A database check prevents a requester and recipient from being the same User. Composite indexes cover requester/status/created-at and recipient/status/created-at lookups, and a partial unique index prevents duplicate `PENDING` or `ACCEPTED` requests for the same requester, recipient, and optional Skill.
+
+## Learning Session table
+
+`learning_sessions` stores the core schedule for an accepted `session_requests` row and is intentionally separate from the authentication `sessions` table. It enforces one Session per SessionRequest, distinct host and participant Users, a positive time range, and a non-empty timezone. Host/participant and schedule indexes support participant access and chronological queries. Meeting URLs and location details are stored only as bounded references/text; no meeting, offline-location, reminder, or notification integration is included.
 
 ## Prisma workflow
 

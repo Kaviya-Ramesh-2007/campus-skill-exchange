@@ -612,6 +612,140 @@ export const requestCancelledEventDefinition = defineEvent({
   payloadSchema: sessionRequestEventPayloadSchema,
 });
 
+const sessionTimezoneSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .refine((value) => {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
+      return true;
+    } catch {
+      return false;
+    }
+  }, 'Timezone must be a valid IANA timezone.');
+
+export const sessionModeSchema = z.enum(['ONLINE', 'OFFLINE']);
+export type SessionMode = z.infer<typeof sessionModeSchema>;
+export const sessionStatusSchema = z.enum([
+  'SCHEDULED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
+]);
+export type SessionStatus = z.infer<typeof sessionStatusSchema>;
+
+export const createSessionSchema = z
+  .object({
+    sessionRequestId: idSchema,
+    mode: sessionModeSchema,
+    scheduledStart: z.string().datetime({ offset: true }),
+    scheduledEnd: z.string().datetime({ offset: true }),
+    timezone: sessionTimezoneSchema,
+    meetingUrl: externalUrlSchema.optional(),
+    locationDetails: z.string().trim().min(1).max(1000).optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (new Date(value.scheduledStart).getTime() >= new Date(value.scheduledEnd).getTime()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'scheduledStart must be before scheduledEnd.',
+        path: ['scheduledEnd'],
+      });
+    }
+  });
+export type CreateSession = z.infer<typeof createSessionSchema>;
+
+export const updateSessionSchema = z.object({ status: sessionStatusSchema }).strict();
+export type UpdateSession = z.infer<typeof updateSessionSchema>;
+
+export const sessionQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+export type SessionQuery = z.infer<typeof sessionQuerySchema>;
+
+const sessionIdentitySchema = z.object({ userId: idSchema, displayName: z.string() }).strict();
+const sessionSkillSchema = z.object({ id: idSchema, name: z.string() }).strict();
+export const sessionSchema = z
+  .object({
+    id: idSchema,
+    sessionRequestId: idSchema,
+    host: sessionIdentitySchema,
+    participant: sessionIdentitySchema,
+    skill: sessionSkillSchema.nullable(),
+    mode: sessionModeSchema,
+    status: sessionStatusSchema,
+    scheduledStart: timestampSchema,
+    scheduledEnd: timestampSchema,
+    timezone: z.string(),
+    meetingUrl: externalUrlSchema.nullable(),
+    locationDetails: z.string().nullable(),
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type Session = z.infer<typeof sessionSchema>;
+export const sessionsResponseSchema = createPaginatedResponseSchema(sessionSchema);
+
+export const sessionEventPayloadSchema = z
+  .object({
+    sessionId: idSchema,
+    sessionRequestId: idSchema,
+    hostUserId: idSchema,
+    participantUserId: idSchema,
+    skillId: idSchema.nullable(),
+    mode: sessionModeSchema,
+    status: sessionStatusSchema,
+    scheduledStart: timestampSchema,
+    scheduledEnd: timestampSchema,
+    timezone: z.string(),
+  })
+  .strict();
+export type SessionEventPayload = z.infer<typeof sessionEventPayloadSchema>;
+
+export const sessionScheduledEventDefinition = defineEvent({
+  name: 'SESSION_SCHEDULED',
+  version: 1,
+  ownerModule: 'sessions',
+  payloadSchema: sessionEventPayloadSchema,
+});
+export const sessionUpdatedEventDefinition = defineEvent({
+  name: 'SESSION_UPDATED',
+  version: 1,
+  ownerModule: 'sessions',
+  payloadSchema: sessionEventPayloadSchema,
+});
+export const sessionStartedEventDefinition = defineEvent({
+  name: 'SESSION_STARTED',
+  version: 1,
+  ownerModule: 'sessions',
+  payloadSchema: sessionEventPayloadSchema,
+});
+export const sessionCompletedEventDefinition = defineEvent({
+  name: 'SESSION_COMPLETED',
+  version: 1,
+  ownerModule: 'sessions',
+  payloadSchema: sessionEventPayloadSchema,
+});
+export const sessionCancelledEventDefinition = defineEvent({
+  name: 'SESSION_CANCELLED',
+  version: 1,
+  ownerModule: 'sessions',
+  payloadSchema: sessionEventPayloadSchema,
+});
+export const sessionNoShowEventDefinition = defineEvent({
+  name: 'SESSION_NO_SHOW',
+  version: 1,
+  ownerModule: 'sessions',
+  payloadSchema: sessionEventPayloadSchema,
+});
+
 export const eventTypeSchema = z.string().regex(/^[A-Z][A-Z0-9_]*$/, {
   message: 'Event types must use UPPER_SNAKE_CASE.',
 });
