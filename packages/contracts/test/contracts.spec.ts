@@ -43,6 +43,10 @@ import {
   badgeDefinitionSchema,
   userBadgeSchema,
   badgeEarnedEventDefinition,
+  createAssessmentSchema,
+  assessmentSchema,
+  assessmentSubmittedEventDefinition,
+  reputationSummarySchema,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -463,6 +467,64 @@ describe('shared contracts', () => {
       version: 1,
       ownerModule: 'badges',
     });
+  });
+
+  it('validates assessment and transparent reputation contracts', () => {
+    const timestamp = '2026-10-01T12:00:00.000Z';
+    const sessionId = '00000000-0000-4000-8000-000000000001';
+    const assessorUserId = '00000000-0000-4000-8000-000000000002';
+    const assessedUserId = '00000000-0000-4000-8000-000000000003';
+    const assessmentId = '00000000-0000-4000-8000-000000000004';
+    const input = {
+      sessionId,
+      understandingScore: 5,
+      practicalApplicationScore: 4,
+      problemSolvingScore: 4,
+      communicationScore: 5,
+      reliabilityScore: 5,
+    };
+    expect(createAssessmentSchema.safeParse(input).success).toBe(true);
+    expect(createAssessmentSchema.safeParse({ ...input, understandingScore: 0 }).success).toBe(
+      false,
+    );
+    expect(
+      assessmentSchema.safeParse({
+        id: assessmentId,
+        ...input,
+        assessor: { userId: assessorUserId, displayName: 'Assessor' },
+        assessedUser: { userId: assessedUserId, displayName: 'Assessed' },
+        skill: null,
+        feedback: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }).success,
+    ).toBe(true);
+    expect(
+      assessmentSubmittedEventDefinition.payloadSchema.safeParse({
+        assessmentId,
+        sessionId,
+        assessorUserId,
+        assessedUserId,
+        skillId: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      reputationSummarySchema.safeParse({
+        userId: assessedUserId,
+        completedSessions: 2,
+        averageRating: 4.5,
+        ratingCount: 2,
+        assessmentCount: 1,
+        assessmentAverages: {
+          understandingScore: 5,
+          practicalApplicationScore: 4,
+          problemSolvingScore: 4,
+          communicationScore: 5,
+          reliabilityScore: 5,
+        },
+        badgeCount: 3,
+      }).success,
+    ).toBe(true);
   });
 
   it('keeps the profile response free of authentication fields', () => {

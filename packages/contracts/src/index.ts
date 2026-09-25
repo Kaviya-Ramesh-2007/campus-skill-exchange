@@ -915,6 +915,82 @@ export const badgeEarnedEventDefinition = defineEvent({
   payloadSchema: badgeEarnedEventPayloadSchema,
 });
 
+export const assessmentScoreSchema = z.number().int().min(1).max(5);
+export const createAssessmentSchema = z
+  .object({
+    sessionId: idSchema,
+    skillId: idSchema.optional(),
+    understandingScore: assessmentScoreSchema,
+    practicalApplicationScore: assessmentScoreSchema,
+    problemSolvingScore: assessmentScoreSchema,
+    communicationScore: assessmentScoreSchema,
+    reliabilityScore: assessmentScoreSchema,
+    feedback: z.string().trim().min(1).max(2000).optional(),
+  })
+  .strict();
+export type CreateAssessment = z.infer<typeof createAssessmentSchema>;
+
+const assessmentIdentitySchema = z.object({ userId: idSchema, displayName: z.string() }).strict();
+const assessmentSkillSchema = z.object({ id: idSchema, name: z.string() }).strict();
+export const assessmentSchema = z
+  .object({
+    id: idSchema,
+    sessionId: idSchema,
+    assessor: assessmentIdentitySchema,
+    assessedUser: assessmentIdentitySchema,
+    skill: assessmentSkillSchema.nullable(),
+    understandingScore: assessmentScoreSchema,
+    practicalApplicationScore: assessmentScoreSchema,
+    problemSolvingScore: assessmentScoreSchema,
+    communicationScore: assessmentScoreSchema,
+    reliabilityScore: assessmentScoreSchema,
+    feedback: z.string().nullable(),
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type Assessment = z.infer<typeof assessmentSchema>;
+
+export const assessmentSubmittedEventPayloadSchema = z
+  .object({
+    assessmentId: idSchema,
+    sessionId: idSchema,
+    assessorUserId: idSchema,
+    assessedUserId: idSchema,
+    skillId: idSchema.nullable(),
+  })
+  .strict();
+export type AssessmentSubmittedEventPayload = z.infer<typeof assessmentSubmittedEventPayloadSchema>;
+export const assessmentSubmittedEventDefinition = defineEvent({
+  name: 'ASSESSMENT_SUBMITTED',
+  version: 1,
+  ownerModule: 'assessments',
+  payloadSchema: assessmentSubmittedEventPayloadSchema,
+});
+
+const reputationMetricSchema = z.number().min(1).max(5).nullable();
+export const assessmentAveragesSchema = z
+  .object({
+    understandingScore: reputationMetricSchema,
+    practicalApplicationScore: reputationMetricSchema,
+    problemSolvingScore: reputationMetricSchema,
+    communicationScore: reputationMetricSchema,
+    reliabilityScore: reputationMetricSchema,
+  })
+  .strict();
+export const reputationSummarySchema = z
+  .object({
+    userId: idSchema,
+    completedSessions: z.number().int().nonnegative(),
+    averageRating: reputationMetricSchema,
+    ratingCount: z.number().int().nonnegative(),
+    assessmentCount: z.number().int().nonnegative(),
+    assessmentAverages: assessmentAveragesSchema,
+    badgeCount: z.number().int().nonnegative(),
+  })
+  .strict();
+export type ReputationSummary = z.infer<typeof reputationSummarySchema>;
+
 export const googleConnectionStatusSchema = z
   .object({
     connected: z.boolean(),
