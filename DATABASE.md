@@ -38,9 +38,13 @@ The Session Core data store adds:
 
 - `learning_sessions`
 
-The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, Session Request, and Session Core migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql` and the Session Core migration is `20260930000000_learning_session_core/migration.sql`.
+The Session Reminder data store adds:
 
-The `sessions` table remains the authentication cookie-token store. Product scheduling, ratings, assessments, badges, payments, notifications, and reports are introduced incrementally by their owning feature prompts.
+- `session_reminders`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, Session Request, Session Core, and Session Reminder migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql`, the Session Core migration is `20260930000000_learning_session_core/migration.sql`, and the Session Reminder migration is `20260930010000_session_reminders/migration.sql`.
+
+The `sessions` table remains the authentication cookie-token store. Additional scheduling features, ratings, assessments, badges, payments, notifications, and reports are introduced incrementally by their owning feature prompts.
 
 ## Configuration
 
@@ -70,7 +74,11 @@ Profile URLs are stored as bounded `VARCHAR(2048)` references and are validated 
 
 ## Learning Session table
 
-`learning_sessions` stores the core schedule for an accepted `session_requests` row and is intentionally separate from the authentication `sessions` table. It enforces one Session per SessionRequest, distinct host and participant Users, a positive time range, and a non-empty timezone. Host/participant and schedule indexes support participant access and chronological queries. Meeting URLs and location details are stored only as bounded references/text; no meeting, offline-location, reminder, or notification integration is included.
+`learning_sessions` stores the core schedule for an accepted `session_requests` row and is intentionally separate from the authentication `sessions` table. It enforces one Session per SessionRequest, distinct host and participant Users, a positive time range, and a non-empty timezone. Host/participant and schedule indexes support participant access and chronological queries. Meeting URLs and location details are stored only as bounded references/text; no meeting or offline-location integration is included.
+
+## Session Reminder table
+
+`session_reminders` stores future reminder records for scheduled `learning_sessions`. The unique `(session_id, reminder_type)` boundary prevents duplicates, and the status/scheduled-for index supports a future dispatcher. Reminder records are created and rescheduled transactionally with the Session, and pending reminders are cancelled when the Session is no longer scheduled. Reminder rows and outbox events do not claim delivery; no email, push, or SMS worker is implemented.
 
 ## Prisma workflow
 

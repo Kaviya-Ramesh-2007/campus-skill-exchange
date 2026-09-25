@@ -33,7 +33,12 @@ class CreateSessionDto {
 ZodSchema(createSessionSchema)(CreateSessionDto);
 
 class UpdateSessionDto {
-  declare status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  declare status?: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  declare locationDetails?: string | null;
+  declare meetingUrl?: string | null;
+  declare scheduledStart?: string;
+  declare scheduledEnd?: string;
+  declare timezone?: string;
 }
 ZodSchema(updateSessionSchema)(UpdateSessionDto);
 

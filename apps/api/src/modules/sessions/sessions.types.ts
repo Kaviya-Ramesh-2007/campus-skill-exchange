@@ -5,6 +5,7 @@ import type {
   SessionEventPayload,
   SessionMode,
   SessionStatus,
+  UpdateSession,
 } from '@campus-skill-exchange/contracts';
 
 export const SESSIONS_REPOSITORY = Symbol('SESSIONS_REPOSITORY');
@@ -41,6 +42,15 @@ export interface SessionListResult {
   total: number;
 }
 
+export type SessionUpdate = {
+  status?: UpdateSession['status'];
+  locationDetails?: string | null;
+  meetingUrl?: string | null;
+  scheduledStart?: Date;
+  scheduledEnd?: Date;
+  timezone?: string;
+};
+
 export interface SessionsRepository {
   findRequest(requestId: string): Promise<SessionRequestRecord | null>;
   findById(id: string): Promise<SessionRecord | null>;
@@ -51,11 +61,12 @@ export interface SessionsRepository {
     input: CreateSession,
     event: EventEnvelope<SessionEventPayload>,
   ): Promise<SessionRecord>;
-  updateStatus(
+  update(
     id: string,
     fromStatus: SessionStatus,
-    toStatus: SessionStatus,
+    update: SessionUpdate,
     events: EventEnvelope<SessionEventPayload>[],
+    scheduleChanged: boolean,
   ): Promise<SessionRecord | null>;
 }
 

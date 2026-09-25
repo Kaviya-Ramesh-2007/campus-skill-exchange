@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SessionsService } from '../src/modules/sessions/sessions.service';
+import { reminderTimesFor } from '../src/modules/sessions/session-reminders';
 import {
   DuplicateSessionError,
   SessionParticipantError,
@@ -97,15 +98,28 @@ class FakeSessionsRepository implements SessionsRepository {
     return row;
   }
 
-  async updateStatus(
+  async update(
     id: string,
     fromStatus: SessionStatus,
-    toStatus: SessionStatus,
+    update: {
+      status?: SessionStatus;
+      locationDetails?: string | null;
+      meetingUrl?: string | null;
+      scheduledStart?: Date;
+      scheduledEnd?: Date;
+      timezone?: string;
+    },
     events: EventEnvelope<SessionEventPayload>[],
+    _scheduleChanged: boolean,
   ): Promise<SessionRecord | null> {
     const row = this.sessions.get(id);
     if (!row || row.status !== fromStatus) return null;
-    const updated = { ...row, status: toStatus, updatedAt: new Date() };
+    const updated = {
+      ...row,
+      ...update,
+      status: update.status ?? row.status,
+      updatedAt: new Date(),
+    };
     this.sessions.set(id, updated);
     this.events.push(...events);
     return updated;
@@ -161,6 +175,22 @@ describe('SessionsService', () => {
     await expect(service.get(created.id, participantId)).resolves.toMatchObject({ id: created.id });
   });
 
+  it('protects offline location details with participant authorization', async () => {
+    const { service } = serviceWithRepository();
+    const created = await service.create(hostId, {
+      ...input,
+      mode: 'OFFLINE',
+      locationDetails: 'MIT Campus Library',
+    });
+    await expect(
+      service.update(created.id, unrelatedId, { locationDetails: 'Elsewhere' }),
+    ).rejects.toThrow();
+    const updated = await service.update(created.id, participantId, {
+      locationDetails: 'MIT Campus Library, Room 4',
+    });
+    expect(updated.locationDetails).toBe('MIT Campus Library, Room 4');
+  });
+
   it('rejects invalid transitions and emits lifecycle events for valid ones', async () => {
     const { repository, service } = serviceWithRepository();
     const created = await service.create(hostId, input);
@@ -171,6 +201,32 @@ describe('SessionsService', () => {
     expect(repository.events.at(-1)?.eventType).toBe('SESSION_STARTED');
     await service.update(created.id, participantId, { status: 'COMPLETED' });
     expect(repository.events.at(-1)?.eventType).toBe('SESSION_COMPLETED');
+  });
+
+  it('requires agreed location details for offline sessions and does not create meeting data', async () => {
+    const { service } = serviceWithRepository();
+    await expect(service.create(hostId, { ...input, mode: 'OFFLINE' })).rejects.toThrow();
+    const offline = await service.create(hostId, {
+      ...input,
+      mode: 'OFFLINE',
+      locationDetails: 'MIT Campus Library',
+    });
+    expect(offline.locationDetails).toBe('MIT Campus Library');
+    expect(offline.meetingUrl).toBeNull();
+  });
+
+  it('allows online sessions without location details', async () => {
+    const { service } = serviceWithRepository();
+    const online = await service.create(hostId, input);
+    expect(online.mode).toBe('ONLINE');
+    expect(online.locationDetails).toBeNull();
+  });
+
+  it('calculates the three reminder times from the scheduled start', () => {
+    const times = reminderTimesFor(new Date(start));
+    expect(times.TWENTY_FOUR_HOURS.toISOString()).toBe('2026-09-29T10:00:00.000Z');
+    expect(times.ONE_HOUR.toISOString()).toBe('2026-09-30T09:00:00.000Z');
+    expect(times.TEN_MINUTES.toISOString()).toBe('2026-09-30T09:50:00.000Z');
   });
 
   it('lists only sessions involving the current User', async () => {

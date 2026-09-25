@@ -656,10 +656,49 @@ export const createSessionSchema = z
         path: ['scheduledEnd'],
       });
     }
+    if (value.mode === 'OFFLINE') {
+      if (!value.locationDetails) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'OFFLINE sessions require locationDetails.',
+          path: ['locationDetails'],
+        });
+      }
+      if (value.meetingUrl !== undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'OFFLINE sessions cannot use a meeting URL.',
+          path: ['meetingUrl'],
+        });
+      }
+    }
   });
 export type CreateSession = z.infer<typeof createSessionSchema>;
 
-export const updateSessionSchema = z.object({ status: sessionStatusSchema }).strict();
+export const updateSessionSchema = z
+  .object({
+    status: sessionStatusSchema.optional(),
+    locationDetails: z.string().trim().min(1).max(1000).nullable().optional(),
+    meetingUrl: externalUrlSchema.nullable().optional(),
+    scheduledStart: z.string().datetime({ offset: true }).optional(),
+    scheduledEnd: z.string().datetime({ offset: true }).optional(),
+    timezone: sessionTimezoneSchema.optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, 'At least one Session field is required.')
+  .superRefine((value, ctx) => {
+    if (
+      value.scheduledStart !== undefined &&
+      value.scheduledEnd !== undefined &&
+      new Date(value.scheduledStart).getTime() >= new Date(value.scheduledEnd).getTime()
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'scheduledStart must be before scheduledEnd.',
+        path: ['scheduledEnd'],
+      });
+    }
+  });
 export type UpdateSession = z.infer<typeof updateSessionSchema>;
 
 export const sessionQuerySchema = z
@@ -744,6 +783,53 @@ export const sessionNoShowEventDefinition = defineEvent({
   version: 1,
   ownerModule: 'sessions',
   payloadSchema: sessionEventPayloadSchema,
+});
+
+export const sessionReminderTypeSchema = z.enum(['TWENTY_FOUR_HOURS', 'ONE_HOUR', 'TEN_MINUTES']);
+export type SessionReminderType = z.infer<typeof sessionReminderTypeSchema>;
+export const sessionReminderStatusSchema = z.enum(['PENDING', 'SENT', 'FAILED', 'CANCELLED']);
+export type SessionReminderStatus = z.infer<typeof sessionReminderStatusSchema>;
+
+export const sessionReminderSchema = z
+  .object({
+    id: idSchema,
+    sessionId: idSchema,
+    reminderType: sessionReminderTypeSchema,
+    scheduledFor: timestampSchema,
+    status: sessionReminderStatusSchema,
+    sentAt: timestampSchema.nullable(),
+    createdAt: timestampSchema,
+  })
+  .strict();
+export type SessionReminder = z.infer<typeof sessionReminderSchema>;
+
+export const sessionReminderEventPayloadSchema = z
+  .object({
+    reminderId: idSchema,
+    sessionId: idSchema,
+    reminderType: sessionReminderTypeSchema,
+    scheduledFor: timestampSchema,
+  })
+  .strict();
+export type SessionReminderEventPayload = z.infer<typeof sessionReminderEventPayloadSchema>;
+
+export const sessionReminder24hEventDefinition = defineEvent({
+  name: 'SESSION_REMINDER_24H',
+  version: 1,
+  ownerModule: 'sessions',
+  payloadSchema: sessionReminderEventPayloadSchema,
+});
+export const sessionReminder1hEventDefinition = defineEvent({
+  name: 'SESSION_REMINDER_1H',
+  version: 1,
+  ownerModule: 'sessions',
+  payloadSchema: sessionReminderEventPayloadSchema,
+});
+export const sessionReminder10mEventDefinition = defineEvent({
+  name: 'SESSION_REMINDER_10M',
+  version: 1,
+  ownerModule: 'sessions',
+  payloadSchema: sessionReminderEventPayloadSchema,
 });
 
 export const eventTypeSchema = z.string().regex(/^[A-Z][A-Z0-9_]*$/, {
