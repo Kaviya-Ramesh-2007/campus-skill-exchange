@@ -26,6 +26,14 @@ import {
   requestAcceptedEventDefinition,
   requestDeclinedEventDefinition,
   requestCancelledEventDefinition,
+  createSessionSchema,
+  sessionSchema,
+  sessionScheduledEventDefinition,
+  sessionUpdatedEventDefinition,
+  sessionStartedEventDefinition,
+  sessionCompletedEventDefinition,
+  sessionCancelledEventDefinition,
+  sessionNoShowEventDefinition,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -259,6 +267,84 @@ describe('shared contracts', () => {
           status: 'PENDING',
         }).success,
       ).toBe(true);
+    }
+  });
+
+  it('validates Session scheduling inputs, safe responses, and event definitions', () => {
+    const sessionRequestId = '00000000-0000-4000-8000-000000000001';
+    const hostUserId = '00000000-0000-4000-8000-000000000002';
+    const participantUserId = '00000000-0000-4000-8000-000000000003';
+    const sessionId = '00000000-0000-4000-8000-000000000004';
+    const skillId = '00000000-0000-4000-8000-000000000005';
+    const timestamp = '2026-09-30T10:00:00.000Z';
+
+    expect(
+      createSessionSchema.safeParse({
+        sessionRequestId,
+        mode: 'ONLINE',
+        scheduledStart: timestamp,
+        scheduledEnd: '2026-09-30T11:00:00.000Z',
+        timezone: 'UTC',
+      }).success,
+    ).toBe(true);
+    expect(
+      createSessionSchema.safeParse({
+        sessionRequestId,
+        mode: 'ONLINE',
+        scheduledStart: timestamp,
+        scheduledEnd: timestamp,
+        timezone: 'UTC',
+      }).success,
+    ).toBe(false);
+    expect(
+      createSessionSchema.safeParse({
+        sessionRequestId,
+        mode: 'ONLINE',
+        scheduledStart: timestamp,
+        scheduledEnd: '2026-09-30T11:00:00.000Z',
+        timezone: 'Not/A_Timezone',
+      }).success,
+    ).toBe(false);
+    expect(
+      sessionSchema.safeParse({
+        id: sessionId,
+        sessionRequestId,
+        host: { userId: hostUserId, displayName: 'Host' },
+        participant: { userId: participantUserId, displayName: 'Participant' },
+        skill: { id: skillId, name: 'AWS' },
+        mode: 'ONLINE',
+        status: 'SCHEDULED',
+        scheduledStart: timestamp,
+        scheduledEnd: '2026-09-30T11:00:00.000Z',
+        timezone: 'UTC',
+        meetingUrl: null,
+        locationDetails: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        email: 'must-not@example.test',
+      }).success,
+    ).toBe(false);
+    const payload = {
+      sessionId,
+      sessionRequestId,
+      hostUserId,
+      participantUserId,
+      skillId,
+      mode: 'ONLINE',
+      status: 'SCHEDULED',
+      scheduledStart: timestamp,
+      scheduledEnd: '2026-09-30T11:00:00.000Z',
+      timezone: 'UTC',
+    };
+    for (const definition of [
+      sessionScheduledEventDefinition,
+      sessionUpdatedEventDefinition,
+      sessionStartedEventDefinition,
+      sessionCompletedEventDefinition,
+      sessionCancelledEventDefinition,
+      sessionNoShowEventDefinition,
+    ]) {
+      expect(definition.payloadSchema.safeParse(payload).success).toBe(true);
     }
   });
 
