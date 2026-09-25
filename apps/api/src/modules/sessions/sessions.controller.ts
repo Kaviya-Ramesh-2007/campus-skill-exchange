@@ -29,6 +29,8 @@ class CreateSessionDto {
   declare timezone: string;
   declare meetingUrl?: string;
   declare locationDetails?: string;
+  declare paymentMode?: 'FREE' | 'PAID';
+  declare pricePaise?: number;
 }
 ZodSchema(createSessionSchema)(CreateSessionDto);
 
@@ -39,6 +41,8 @@ class UpdateSessionDto {
   declare scheduledStart?: string;
   declare scheduledEnd?: string;
   declare timezone?: string;
+  declare paymentMode?: 'FREE' | 'PAID';
+  declare pricePaise?: number;
 }
 ZodSchema(updateSessionSchema)(UpdateSessionDto);
 

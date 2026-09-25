@@ -56,6 +56,25 @@ export class PaymentsService {
     @Inject(AUTHORIZATION_POLICY) private readonly authorizationPolicy: AuthorizationPolicy,
   ) {}
 
+  /**
+   * Reused by the Sessions module so a User cannot simply declare themselves
+   * qualified to charge. Delegates to the same verified-certification evidence
+   * check that gates `createOrder`, so the rule cannot drift between modules.
+   */
+  async assertCanOfferPaidSession(userId: string): Promise<void> {
+    if (!(await this.repository.hasVerifiedPaidEvidence(userId))) {
+      throw new PaymentEligibilityError();
+    }
+  }
+
+  /**
+   * Paid Session terms are immutable once any payment attempt exists, so a
+   * price can never be changed underneath a payer who already started to pay.
+   */
+  async hasPaymentForSession(sessionId: string): Promise<boolean> {
+    return this.repository.existsForSession(sessionId);
+  }
+
   async createOrder(actor: AuthUser, input: unknown): Promise<PaymentOrderResponse> {
     try {
       return await this.createOrderInternal(actor, input);

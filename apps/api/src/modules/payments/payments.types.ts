@@ -65,6 +65,7 @@ export interface PaymentsRepository {
   ): Promise<PaymentRecord>;
   findById(id: string): Promise<PaymentRecord | null>;
   findBySessionAndPayer(sessionId: string, payerUserId: string): Promise<PaymentRecord | null>;
+  existsForSession(sessionId: string): Promise<boolean>;
   findByProviderOrderId(providerOrderId: string): Promise<PaymentRecord | null>;
   findByProviderPaymentId(providerPaymentId: string): Promise<PaymentRecord | null>;
   attachProviderOrder(id: string, providerOrderId: string): Promise<PaymentRecord>;

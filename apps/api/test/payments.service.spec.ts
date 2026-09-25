@@ -69,6 +69,9 @@ class FakePaymentsRepository implements PaymentsRepository {
   async findSession() {
     return this.session;
   }
+  async existsForSession() {
+    return this.payment !== null;
+  }
   async hasVerifiedPaidEvidence() {
     return this.eligible;
   }

@@ -628,6 +628,13 @@ const sessionTimezoneSchema = z
 
 export const sessionModeSchema = z.enum(['ONLINE', 'OFFLINE']);
 export type SessionMode = z.infer<typeof sessionModeSchema>;
+
+/**
+ * Declared before the Session schemas because `createSessionSchema`,
+ * `updateSessionSchema`, and `sessionSchema` all reference it at module load.
+ */
+export const sessionPaymentModeSchema = z.enum(['FREE', 'PAID']);
+export type SessionPaymentMode = z.infer<typeof sessionPaymentModeSchema>;
 export const sessionStatusSchema = z.enum([
   'SCHEDULED',
   'IN_PROGRESS',
@@ -636,6 +643,13 @@ export const sessionStatusSchema = z.enum([
   'NO_SHOW',
 ]);
 export type SessionStatus = z.infer<typeof sessionStatusSchema>;
+
+/**
+ * Server-owned identifier for the paid Session terms currently in force.
+ * The API stamps this onto a PAID Session; clients only read it back and
+ * echo it to `POST /payments/order` so stale terms are rejected server-side.
+ */
+export const paidSessionTermsVersion = '2026-10-01-v1';
 
 export const createSessionSchema = z
   .object({
@@ -646,6 +660,8 @@ export const createSessionSchema = z
     timezone: sessionTimezoneSchema,
     meetingUrl: externalUrlSchema.optional(),
     locationDetails: z.string().trim().min(1).max(1000).optional(),
+    paymentMode: sessionPaymentModeSchema.optional(),
+    pricePaise: z.number().int().positive().max(100000000).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -672,6 +688,21 @@ export const createSessionSchema = z
         });
       }
     }
+    const isPaid = value.paymentMode === 'PAID';
+    if (isPaid && value.pricePaise === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'PAID sessions require a positive pricePaise in INR paise.',
+        path: ['pricePaise'],
+      });
+    }
+    if (!isPaid && value.pricePaise !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Only PAID sessions can define pricePaise.',
+        path: ['pricePaise'],
+      });
+    }
   });
 export type CreateSession = z.infer<typeof createSessionSchema>;
 
@@ -683,6 +714,8 @@ export const updateSessionSchema = z
     scheduledStart: z.string().datetime({ offset: true }).optional(),
     scheduledEnd: z.string().datetime({ offset: true }).optional(),
     timezone: sessionTimezoneSchema.optional(),
+    paymentMode: sessionPaymentModeSchema.optional(),
+    pricePaise: z.number().int().positive().max(100000000).optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, 'At least one Session field is required.')
@@ -696,6 +729,13 @@ export const updateSessionSchema = z
         code: 'custom',
         message: 'scheduledStart must be before scheduledEnd.',
         path: ['scheduledEnd'],
+      });
+    }
+    if (value.paymentMode === 'FREE' && value.pricePaise !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Only PAID sessions can define pricePaise.',
+        path: ['pricePaise'],
       });
     }
   });
@@ -726,6 +766,9 @@ export const sessionSchema = z
     meetingUrl: externalUrlSchema.nullable(),
     locationDetails: z.string().nullable(),
     googleConferenceStatus: z.enum(['PENDING', 'READY', 'FAILED']).nullable(),
+    paymentMode: sessionPaymentModeSchema,
+    pricePaise: z.number().int().positive().nullable(),
+    termsVersion: z.string().nullable(),
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
   })
@@ -991,8 +1034,6 @@ export const reputationSummarySchema = z
   .strict();
 export type ReputationSummary = z.infer<typeof reputationSummarySchema>;
 
-export const sessionPaymentModeSchema = z.enum(['FREE', 'PAID']);
-export type SessionPaymentMode = z.infer<typeof sessionPaymentModeSchema>;
 export const paymentStatusSchema = z.enum([
   'CREATED',
   'PENDING',

@@ -100,6 +100,9 @@ class FakeSessionsRepository implements SessionsRepository {
       googleCalendarEventId: googleData?.eventId ?? null,
       googleConferenceId: googleData?.conferenceId ?? null,
       googleConferenceStatus: googleData?.conferenceStatus ?? null,
+      paymentMode: data.paymentMode ?? 'FREE',
+      pricePaise: data.paymentMode === 'PAID' ? (data.pricePaise ?? null) : null,
+      termsVersion: data.paymentMode === 'PAID' ? 'test-terms-v1' : null,
       createdAt: now,
       updatedAt: now,
     };

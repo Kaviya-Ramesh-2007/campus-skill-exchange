@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { z } from 'zod';
 import {
   createSessionSchema,
+  paidSessionTermsVersion,
   sessionCancelledEventDefinition,
   sessionCompletedEventDefinition,
   sessionNoShowEventDefinition,
@@ -20,6 +21,7 @@ import {
 import { ApiException } from '../../common/errors/api-exception';
 import { GoogleIntegrationService } from '../integrations/google/google-integration.service';
 import type { GoogleEventData, GoogleEventInput } from '../integrations/google/google.types';
+import { PaymentsService } from '../payments/payments.service';
 import {
   DuplicateSessionError,
   SESSIONS_REPOSITORY,
@@ -38,6 +40,9 @@ export class SessionsService {
     @Optional()
     @Inject(GoogleIntegrationService)
     private readonly google?: GoogleIntegrationService,
+    @Optional()
+    @Inject(PaymentsService)
+    private readonly payments?: PaymentsService,
   ) {}
 
   async create(actorUserId: string, input: unknown): Promise<Session> {
@@ -46,6 +51,9 @@ export class SessionsService {
       await this.repository.findRequest(data.sessionRequestId),
       actorUserId,
     );
+    if (data.paymentMode === 'PAID') {
+      await this.assertPaidSessionEligible(request.requesterUserId);
+    }
     const id = randomUUID();
     const googleData =
       data.mode === 'ONLINE' ? await this.createGoogleEvent(actorUserId, id, request, data) : null;
@@ -111,6 +119,39 @@ export class SessionsService {
     }
     if (data.status) this.assertTransition(existing.status, data.status);
 
+    const paymentTermsChanged = data.paymentMode !== undefined || data.pricePaise !== undefined;
+    if (paymentTermsChanged) {
+      if (existing.status !== 'SCHEDULED') {
+        throw new ApiException(
+          409,
+          'CONFLICT',
+          'Only scheduled Sessions can change paid Session terms.',
+        );
+      }
+      if (this.payments && (await this.payments.hasPaymentForSession(sessionId))) {
+        throw new ApiException(
+          409,
+          'CONFLICT',
+          'Paid Session terms cannot change once a payment has been started.',
+        );
+      }
+    }
+    const nextPaymentMode = data.paymentMode ?? existing.paymentMode;
+    const nextPricePaise =
+      data.paymentMode !== undefined || data.pricePaise !== undefined
+        ? (data.pricePaise ?? null)
+        : existing.pricePaise;
+    if (nextPaymentMode === 'PAID' && (nextPricePaise === null || nextPricePaise <= 0)) {
+      throw new ApiException(
+        400,
+        'VALIDATION_ERROR',
+        'PAID sessions require a positive pricePaise.',
+      );
+    }
+    if (nextPaymentMode === 'PAID' && paymentTermsChanged) {
+      // The host is whoever the SessionRequest authoriser turned into the host.
+      await this.assertPaidSessionEligible(existing.host.userId);
+    }
     const scheduledStart = data.scheduledStart
       ? new Date(data.scheduledStart)
       : existing.scheduledStart;
@@ -148,6 +189,13 @@ export class SessionsService {
       ...(data.meetingUrl !== undefined ? { meetingUrl: data.meetingUrl } : {}),
       ...(scheduleChanged ? { scheduledStart, scheduledEnd } : {}),
       ...(data.timezone !== undefined ? { timezone } : {}),
+      ...(paymentTermsChanged
+        ? {
+            paymentMode: nextPaymentMode,
+            pricePaise: nextPaymentMode === 'PAID' ? nextPricePaise : null,
+            termsVersion: nextPaymentMode === 'PAID' ? paidSessionTermsVersion : null,
+          }
+        : {}),
     };
     const events = [
       this.createStatusEvent(userId, nextForEvent, nextStatus, sessionUpdatedEventDefinition),
@@ -212,6 +260,26 @@ export class SessionsService {
     if (!updated)
       throw new ApiException(409, 'CONFLICT', 'The session changed before it could be updated.');
     return this.toResponse(updated);
+  }
+
+  private async assertPaidSessionEligible(hostUserId: string): Promise<void> {
+    if (!this.payments) {
+      throw new ApiException(
+        503,
+        'DEPENDENCY_UNAVAILABLE',
+        'Paid Sessions are unavailable right now.',
+      );
+    }
+    try {
+      await this.payments.assertCanOfferPaidSession(hostUserId);
+    } catch (error) {
+      if (error instanceof ApiException) throw error;
+      throw new ApiException(
+        403,
+        'FORBIDDEN',
+        'A verified certification is required to offer a PAID Session.',
+      );
+    }
   }
 
   private async createGoogleEvent(

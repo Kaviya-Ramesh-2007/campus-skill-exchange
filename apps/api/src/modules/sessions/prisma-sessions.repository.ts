@@ -4,10 +4,12 @@ import type {
   CreateSession,
   EventEnvelope,
   SessionEventPayload,
+  SessionPaymentMode,
   SessionReminderEventPayload,
   SessionReminderType,
   SessionStatus,
 } from '@campus-skill-exchange/contracts';
+import { paidSessionTermsVersion } from '@campus-skill-exchange/contracts';
 import type { Prisma } from '@campus-skill-exchange/database';
 import { PrismaService } from '../../platform/database/prisma.service';
 import { OUTBOX_WRITER, type OutboxWriter } from '../../platform/events/outbox-contracts';
@@ -105,6 +107,7 @@ export class PrismaSessionsRepository implements SessionsRepository {
     event: EventEnvelope<SessionEventPayload>,
     googleData?: SessionGoogleData | null,
   ): Promise<SessionRecord> {
+    const terms = resolvePaidSessionTerms(input);
     try {
       return await this.prisma.$transaction(async (tx) => {
         const request = await tx.sessionRequest.findUnique({
@@ -143,6 +146,9 @@ export class PrismaSessionsRepository implements SessionsRepository {
             googleCalendarEventId: googleData?.eventId ?? null,
             googleConferenceId: googleData?.conferenceId ?? null,
             googleConferenceStatus: googleData?.conferenceStatus ?? null,
+            paymentMode: terms.paymentMode,
+            pricePaise: terms.paymentMode === 'PAID' ? terms.pricePaise : null,
+            termsVersion: terms.paymentMode === 'PAID' ? terms.termsVersion : null,
           },
           include: sessionInclude,
         });
@@ -301,6 +307,9 @@ export class PrismaSessionsRepository implements SessionsRepository {
       googleCalendarEventId: row.googleCalendarEventId,
       googleConferenceId: row.googleConferenceId,
       googleConferenceStatus: row.googleConferenceStatus,
+      paymentMode: row.paymentMode,
+      pricePaise: row.pricePaise,
+      termsVersion: row.termsVersion,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -309,4 +318,27 @@ export class PrismaSessionsRepository implements SessionsRepository {
   private isUnique(error: unknown): boolean {
     return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
   }
+}
+
+/**
+ * Resolves the paid Session terms from a validated create request.
+ *
+ * The client may propose a mode and a price, but it can never choose the terms
+ * version: the API stamps the current version so `POST /payments/order` can
+ * reject a payer who accepted stale terms. The shape written here always
+ * satisfies the `learning_sessions_payment_terms_check` database constraint.
+ */
+function resolvePaidSessionTerms(input: CreateSession): {
+  paymentMode: SessionPaymentMode;
+  pricePaise: number | null;
+  termsVersion: string | null;
+} {
+  if (input.paymentMode !== 'PAID' || input.pricePaise === undefined) {
+    return { paymentMode: 'FREE', pricePaise: null, termsVersion: null };
+  }
+  return {
+    paymentMode: 'PAID',
+    pricePaise: input.pricePaise,
+    termsVersion: paidSessionTermsVersion,
+  };
 }

@@ -105,6 +105,11 @@ export class PrismaPaymentsRepository implements PaymentsRepository {
     return row ? this.mapPayment(row) : null;
   }
 
+  async existsForSession(sessionId: string): Promise<boolean> {
+    const count = await this.prisma.payment.count({ where: { sessionId } });
+    return count > 0;
+  }
+
   async findByProviderOrderId(providerOrderId: string): Promise<PaymentRecord | null> {
     const row = await this.prisma.payment.findUnique({
       where: { providerOrderId },
