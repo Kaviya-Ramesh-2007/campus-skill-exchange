@@ -991,6 +991,152 @@ export const reputationSummarySchema = z
   .strict();
 export type ReputationSummary = z.infer<typeof reputationSummarySchema>;
 
+export const sessionPaymentModeSchema = z.enum(['FREE', 'PAID']);
+export type SessionPaymentMode = z.infer<typeof sessionPaymentModeSchema>;
+export const paymentStatusSchema = z.enum([
+  'CREATED',
+  'PENDING',
+  'AUTHORIZED',
+  'CAPTURED',
+  'FAILED',
+  'CANCELLED',
+  'REFUND_PENDING',
+  'REFUNDED',
+  'PARTIALLY_REFUNDED',
+]);
+export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
+export const transactionTypeSchema = z.enum(['PAYMENT', 'REFUND']);
+export type TransactionType = z.infer<typeof transactionTypeSchema>;
+export const transactionStatusSchema = z.enum(['PENDING', 'COMPLETED', 'FAILED']);
+export type TransactionStatus = z.infer<typeof transactionStatusSchema>;
+
+export const createPaymentOrderSchema = z
+  .object({
+    sessionId: idSchema,
+    termsVersion: z.string().trim().min(1).max(64),
+    termsAccepted: z.literal(true),
+  })
+  .strict();
+export type CreatePaymentOrder = z.infer<typeof createPaymentOrderSchema>;
+export const paymentOrderResponseSchema = z
+  .object({
+    paymentId: idSchema,
+    providerOrderId: z.string().min(1),
+    amountPaise: z.number().int().positive(),
+    currency: z.literal('INR'),
+    keyId: z.string().min(1),
+  })
+  .strict();
+export type PaymentOrderResponse = z.infer<typeof paymentOrderResponseSchema>;
+export const verifyPaymentSchema = z
+  .object({
+    paymentId: idSchema,
+    providerOrderId: z.string().min(1),
+    providerPaymentId: z.string().min(1),
+    signature: z.string().min(1),
+  })
+  .strict();
+export type VerifyPayment = z.infer<typeof verifyPaymentSchema>;
+export const refundPaymentSchema = z
+  .object({
+    amountPaise: z.number().int().positive().optional(),
+    reason: z.string().trim().min(1).max(1000),
+  })
+  .strict();
+export type RefundPayment = z.infer<typeof refundPaymentSchema>;
+
+const transactionSchema = z
+  .object({
+    id: idSchema,
+    paymentId: idSchema,
+    sessionId: idSchema,
+    userId: idSchema,
+    type: transactionTypeSchema,
+    amountPaise: z.number().int().positive(),
+    currency: z.literal('INR'),
+    status: transactionStatusSchema,
+    providerReference: z.string().nullable(),
+    createdAt: timestampSchema,
+  })
+  .strict();
+export type Transaction = z.infer<typeof transactionSchema>;
+export const paymentSchema = z
+  .object({
+    id: idSchema,
+    sessionId: idSchema,
+    payerUserId: idSchema,
+    recipientUserId: idSchema,
+    amountPaise: z.number().int().positive(),
+    currency: z.literal('INR'),
+    provider: z.literal('RAZORPAY'),
+    status: paymentStatusSchema,
+    providerOrderId: z.string().nullable(),
+    providerPaymentId: z.string().nullable(),
+    termsVersion: z.string(),
+    termsAcceptedAt: timestampSchema,
+    termsAcceptedBy: idSchema,
+    paidAt: timestampSchema.nullable(),
+    failureReason: z.string().nullable(),
+    refundAmountPaise: z.number().int().nonnegative(),
+    refundProviderId: z.string().nullable(),
+    refundReason: z.string().nullable(),
+    refundedAt: timestampSchema.nullable(),
+    transactions: z.array(transactionSchema),
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type Payment = z.infer<typeof paymentSchema>;
+
+const paymentEventPayloadSchema = z
+  .object({
+    paymentId: idSchema,
+    sessionId: idSchema,
+    payerUserId: idSchema,
+    recipientUserId: idSchema,
+    amountPaise: z.number().int().positive(),
+    currency: z.literal('INR'),
+    status: paymentStatusSchema,
+  })
+  .strict();
+export type PaymentEventPayload = z.infer<typeof paymentEventPayloadSchema>;
+const refundEventPayloadSchema = paymentEventPayloadSchema.extend({
+  transactionId: idSchema,
+  refundProviderId: z.string().nullable(),
+  reason: z.string().nullable(),
+});
+export type RefundEventPayload = z.infer<typeof refundEventPayloadSchema>;
+export const paymentCreatedEventDefinition = defineEvent({
+  name: 'PAYMENT_CREATED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: paymentEventPayloadSchema,
+});
+export const paymentCapturedEventDefinition = defineEvent({
+  name: 'PAYMENT_CAPTURED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: paymentEventPayloadSchema,
+});
+export const paymentFailedEventDefinition = defineEvent({
+  name: 'PAYMENT_FAILED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: paymentEventPayloadSchema,
+});
+export const refundRequestedEventDefinition = defineEvent({
+  name: 'REFUND_REQUESTED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: refundEventPayloadSchema,
+});
+export const refundCompletedEventDefinition = defineEvent({
+  name: 'REFUND_COMPLETED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: refundEventPayloadSchema,
+});
+
 export const googleConnectionStatusSchema = z
   .object({
     connected: z.boolean(),

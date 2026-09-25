@@ -30,6 +30,9 @@ const environmentSchema = z
       .string()
       .url()
       .default('http://localhost:3001/api/v1/integrations/google/callback'),
+    RAZORPAY_KEY_ID: z.string().default(''),
+    RAZORPAY_KEY_SECRET: z.string().default(''),
+    RAZORPAY_WEBHOOK_SECRET: z.string().default(''),
   })
   .superRefine((config, context) => {
     if (config.AUTH_SESSION_SAME_SITE === 'none' && config.NODE_ENV !== 'production') {

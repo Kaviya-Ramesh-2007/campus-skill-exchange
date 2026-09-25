@@ -12,22 +12,28 @@ Foundation, Prompt 1, and Prompt 2 expose infrastructure, local authentication, 
 
 ## Current routes
 
-| Method  | Route                           | Purpose                                     |
-| ------- | ------------------------------- | ------------------------------------------- |
-| `GET`   | `/api/v1/health`                | Process liveness check                      |
-| `GET`   | `/api/v1/ready`                 | PostgreSQL readiness check                  |
-| `GET`   | `/api/docs`                     | Swagger UI for currently implemented routes |
-| `POST`  | `/api/v1/auth/register`         | Create a local account and session          |
-| `POST`  | `/api/v1/auth/login`            | Authenticate with email/password            |
-| `POST`  | `/api/v1/auth/logout`           | Revoke the current session                  |
-| `GET`   | `/api/v1/auth/me`               | Return the current authenticated user       |
-| `GET`   | `/api/v1/profile`               | Get the current user's profile              |
-| `POST`  | `/api/v1/profile`               | Initialize the current user's profile       |
-| `PATCH` | `/api/v1/profile`               | Update the current user's profile           |
-| `GET`   | `/api/v1/users/:userId/profile` | Get another user's public profile           |
-| `PATCH` | `/api/v1/users/:userId/profile` | Update an owned or ADMIN-authorized profile |
-| `GET`   | `/api/v1/badges`                | List available BadgeDefinitions             |
-| `GET`   | `/api/v1/badges/users/:userId`  | List badges earned by an authorized User    |
+| Method  | Route                                | Purpose                                     |
+| ------- | ------------------------------------ | ------------------------------------------- |
+| `GET`   | `/api/v1/health`                     | Process liveness check                      |
+| `GET`   | `/api/v1/ready`                      | PostgreSQL readiness check                  |
+| `GET`   | `/api/docs`                          | Swagger UI for currently implemented routes |
+| `POST`  | `/api/v1/auth/register`              | Create a local account and session          |
+| `POST`  | `/api/v1/auth/login`                 | Authenticate with email/password            |
+| `POST`  | `/api/v1/auth/logout`                | Revoke the current session                  |
+| `GET`   | `/api/v1/auth/me`                    | Return the current authenticated user       |
+| `GET`   | `/api/v1/profile`                    | Get the current user's profile              |
+| `POST`  | `/api/v1/profile`                    | Initialize the current user's profile       |
+| `PATCH` | `/api/v1/profile`                    | Update the current user's profile           |
+| `GET`   | `/api/v1/users/:userId/profile`      | Get another user's public profile           |
+| `PATCH` | `/api/v1/users/:userId/profile`      | Update an owned or ADMIN-authorized profile |
+| `GET`   | `/api/v1/badges`                     | List available BadgeDefinitions             |
+| `GET`   | `/api/v1/badges/users/:userId`       | List badges earned by an authorized User    |
+| `POST`  | `/api/v1/payments/order`             | Create a verified INR Razorpay order        |
+| `POST`  | `/api/v1/payments/verify`            | Verify a Razorpay payment signature         |
+| `POST`  | `/api/v1/payments/webhook`           | Process a signed Razorpay webhook           |
+| `GET`   | `/api/v1/payments/history`           | List the current User's payment history     |
+| `GET`   | `/api/v1/payments/:paymentId`        | Get an authorized safe payment record       |
+| `POST`  | `/api/v1/payments/:paymentId/refund` | Request a verified Razorpay refund          |
 
 The health response is generated from actual process state. Readiness executes a real PostgreSQL `SELECT 1` check and returns `503` with the shared error envelope when the database is unavailable.
 
@@ -246,6 +252,10 @@ The outbox stores the minimal durable event structure; Prompt 2 adds a profile e
 
 `GET /api/v1/badges` requires an authenticated User and returns safe BadgeDefinition catalog data. `GET /api/v1/badges/users/:userId` requires the authenticated User to be the owner or an `ADMIN`; it returns the User's earned badges. There is intentionally no public badge-award endpoint. The internal Badge service accepts only existing User and BadgeDefinition IDs, is idempotent for an existing award, and writes a `BADGE_EARNED` outbox event only when a new `UserBadge` is created. No eligibility rules are implemented yet.
 
+## Payment boundary
+
+Payments use INR integer paise and Razorpay TEST mode during development. Order creation derives the amount from the server-side paid Session, requires explicit terms acceptance, and requires verified recipient evidence. The browser receives only the public key/order data; `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` remain server-only. Payment success is recorded only after server-side signature verification and a signed webhook. Webhooks are idempotent, refunds are provider-backed and amount-bounded, and payment/transaction history is immutable and owner-scoped. FREE Sessions do not create payments.
+
 ## Future route groups
 
-Future prompts may add `/skills`, `/user-skills`, `/learning-goals`, `/availability`, `/certifications`, `/projects`, `/matching`, `/exchanges`, `/requests`, `/sessions`, `/ratings`, `/assessments`, `/payments`, `/transactions`, `/notifications`, `/reports`, `/admin`, and `/analytics` only when their feature is implemented and documented.
+Future prompts may add `/skills`, `/user-skills`, `/learning-goals`, `/availability`, `/certifications`, `/projects`, `/matching`, `/exchanges`, `/requests`, `/sessions`, `/ratings`, `/assessments`, `/notifications`, `/reports`, `/admin`, and `/analytics` only when their feature is implemented and documented.
