@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Card, EmptyState, Loading } from '@campus-skill-exchange/ui';
 import { useAuth } from '../../../features/auth/auth-provider';
-import { getLiveness, getReadiness } from '../../../features/admin/admin-api';
+import { getAnalyticsOverview, getLiveness, getReadiness } from '../../../features/admin/admin-api';
 import type { LivenessReport, ReadinessReport } from '../../../features/admin/admin-api';
+import type { AnalyticsOverview } from '@campus-skill-exchange/contracts';
 
 /**
  * Admin areas that do not have a real route yet. These are intentionally
@@ -75,6 +76,8 @@ export default function AdminPage() {
             </div>
           </section>
 
+          <PlatformOverview />
+
           <nav className="admin-grid" aria-label="Admin areas">
             {ADMIN_AREAS.map((area) =>
               area.available && 'href' in area ? (
@@ -104,6 +107,73 @@ export default function AdminPage() {
         </>
       )}
     </div>
+  );
+}
+
+const METRIC_LABELS: { key: keyof AnalyticsOverview; label: string }[] = [
+  { key: 'totalUsers', label: 'Members' },
+  { key: 'activeUsers', label: 'Active members' },
+  { key: 'totalSkills', label: 'Skills' },
+  { key: 'totalSessions', label: 'Sessions' },
+  { key: 'completedSessions', label: 'Completed sessions' },
+  { key: 'paidSessions', label: 'Paid sessions' },
+  { key: 'totalReports', label: 'Reports' },
+  { key: 'openReports', label: 'Open reports' },
+];
+
+/**
+ * Real counters only. While loading, or if the request fails, no number is
+ * rendered at all rather than a placeholder or an invented figure.
+ */
+function PlatformOverview() {
+  const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const result = await getAnalyticsOverview();
+        if (active) setOverview(result);
+      } catch {
+        if (active) setError(true);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <section aria-labelledby="platform-overview-heading">
+      <div className="section-heading">
+        <h2 id="platform-overview-heading">Platform Overview</h2>
+        <Badge tone="info">ADMIN</Badge>
+      </div>
+
+      {loading && <Loading label="Loading platform metrics" />}
+      {error && (
+        <Alert severity="error" title="Analytics unavailable">
+          Platform analytics are unavailable right now.
+        </Alert>
+      )}
+
+      {!loading && !error && overview && (
+        <ul className="admin-metrics">
+          {METRIC_LABELS.map((metric) => (
+            <li key={String(metric.key)} className="admin-metric">
+              <span className="admin-metric__value">
+                {overview[metric.key].toLocaleString('en-IN')}
+              </span>
+              <span className="admin-metric__label">{metric.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
