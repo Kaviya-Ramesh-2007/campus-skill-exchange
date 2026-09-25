@@ -30,9 +30,13 @@ Prompt 4 adds the user-owned development and portfolio tables:
 - `certifications`
 - `projects`
 
-The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, and development migrations are committed under `database/prisma/migrations/`; the Prompt 4 migration is `20260928000000_learning_availability_certification_project_foundation/migration.sql`.
+The Session Request data store adds:
 
-No later product tables such as sessions as a product workflow, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
+- `session_requests`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, and Session Request migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql`.
+
+No product Session scheduling table, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
 
 ## Configuration
 
@@ -55,6 +59,10 @@ Registration never accepts a role from the request. The server creates the `USER
 `profiles` is a one-to-one presentation record for an existing `users` row. The `user_id` foreign key is unique and cascades only when the owning identity is removed. `public_display_name` is an optional public presentation name; when it is absent, the API uses the existing `User.displayName`. Authentication fields, sessions, account status, and system roles are not stored in `profiles`.
 
 Profile URLs are stored as bounded `VARCHAR(2048)` references and are validated as HTTP/HTTPS URLs by the API. `interests` is a bounded PostgreSQL text array, normalized and de-duplicated by the application. `visibility` controls whether the public profile route exposes the record. A successful profile update and its `PROFILE_UPDATED` outbox row are committed in one transaction.
+
+## Session Request table
+
+`session_requests` stores direct requests between two existing `users` without introducing a product Session or scheduling workflow. The requester and recipient foreign keys cascade when a User is removed; the optional Skill foreign key uses `SET NULL` so a request remains valid when its referenced Skill is removed. A database check prevents a requester and recipient from being the same User. Composite indexes cover requester/status/created-at and recipient/status/created-at lookups, and a partial unique index prevents duplicate `PENDING` or `ACCEPTED` requests for the same requester, recipient, and optional Skill.
 
 ## Prisma workflow
 
