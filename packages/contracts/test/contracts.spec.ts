@@ -37,6 +37,9 @@ import {
   sessionReminder24hEventDefinition,
   sessionReminder1hEventDefinition,
   sessionReminder10mEventDefinition,
+  createRatingSchema,
+  ratingSchema,
+  ratingSubmittedEventDefinition,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -382,6 +385,42 @@ describe('shared contracts', () => {
     ]) {
       expect(definition.payloadSchema.safeParse(reminderPayload).success).toBe(true);
     }
+  });
+
+  it('validates rating inputs, safe responses, and the submitted event', () => {
+    const sessionId = '00000000-0000-4000-8000-000000000001';
+    const raterUserId = '00000000-0000-4000-8000-000000000002';
+    const ratedUserId = '00000000-0000-4000-8000-000000000003';
+    const ratingId = '00000000-0000-4000-8000-000000000004';
+    const timestamp = '2026-09-30T12:00:00.000Z';
+
+    expect(
+      createRatingSchema.parse({ sessionId, rating: 5, feedback: '  Helpful session.  ' }),
+    ).toEqual({ sessionId, rating: 5, feedback: 'Helpful session.' });
+    expect(createRatingSchema.safeParse({ sessionId, rating: 0 }).success).toBe(false);
+    expect(createRatingSchema.safeParse({ sessionId, rating: 6 }).success).toBe(false);
+    expect(
+      ratingSchema.safeParse({
+        id: ratingId,
+        sessionId,
+        rater: { userId: raterUserId, displayName: 'Rater' },
+        ratedUser: { userId: ratedUserId, displayName: 'Rated partner' },
+        rating: 4,
+        feedback: 'Clear and helpful.',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        email: 'must-not@example.test',
+      }).success,
+    ).toBe(false);
+    expect(
+      ratingSubmittedEventDefinition.payloadSchema.safeParse({
+        ratingId,
+        sessionId,
+        raterUserId,
+        ratedUserId,
+        rating: 4,
+      }).success,
+    ).toBe(true);
   });
 
   it('keeps the profile response free of authentication fields', () => {

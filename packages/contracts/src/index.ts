@@ -833,6 +833,49 @@ export const sessionReminder10mEventDefinition = defineEvent({
   payloadSchema: sessionReminderEventPayloadSchema,
 });
 
+export const ratingValueSchema = z.number().int().min(1).max(5);
+export type RatingValue = z.infer<typeof ratingValueSchema>;
+export const createRatingSchema = z
+  .object({
+    sessionId: idSchema,
+    rating: ratingValueSchema,
+    feedback: z.string().trim().min(1).max(2000).optional(),
+  })
+  .strict();
+export type CreateRating = z.infer<typeof createRatingSchema>;
+
+const ratingIdentitySchema = z.object({ userId: idSchema, displayName: z.string() }).strict();
+export const ratingSchema = z
+  .object({
+    id: idSchema,
+    sessionId: idSchema,
+    rater: ratingIdentitySchema,
+    ratedUser: ratingIdentitySchema,
+    rating: ratingValueSchema,
+    feedback: z.string().nullable(),
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type Rating = z.infer<typeof ratingSchema>;
+
+export const ratingSubmittedEventPayloadSchema = z
+  .object({
+    ratingId: idSchema,
+    sessionId: idSchema,
+    raterUserId: idSchema,
+    ratedUserId: idSchema,
+    rating: ratingValueSchema,
+  })
+  .strict();
+export type RatingSubmittedEventPayload = z.infer<typeof ratingSubmittedEventPayloadSchema>;
+export const ratingSubmittedEventDefinition = defineEvent({
+  name: 'RATING_SUBMITTED',
+  version: 1,
+  ownerModule: 'ratings',
+  payloadSchema: ratingSubmittedEventPayloadSchema,
+});
+
 export const googleConnectionStatusSchema = z
   .object({
     connected: z.boolean(),

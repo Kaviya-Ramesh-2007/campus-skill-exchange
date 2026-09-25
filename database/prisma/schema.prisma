@@ -122,6 +122,8 @@ model User {
   receivedSessionRequests SessionRequest[] @relation("SessionRequestRecipient")
   hostedLearningSessions LearningSession[] @relation("LearningSessionHost")
   participatingLearningSessions LearningSession[] @relation("LearningSessionParticipant")
+  ratingsGiven          Rating[] @relation("RatingRater")
+  ratingsReceived       Rating[] @relation("RatingRatedUser")
 
   @@unique([email])
   @@index([accountStatus])
@@ -314,12 +316,33 @@ model LearningSession {
   participant       User                  @relation("LearningSessionParticipant", fields: [participantUserId], references: [id], onDelete: Cascade)
   skill             Skill?                @relation(fields: [skillId], references: [id], onDelete: SetNull)
   reminders         SessionReminder[]
+  ratings           Rating[]
 
   @@index([hostUserId, status, scheduledStart])
   @@index([participantUserId, status, scheduledStart])
   @@index([scheduledStart])
   @@index([googleCalendarEventId])
   @@map("learning_sessions")
+}
+
+/// A User's rating of their session partner after a completed Session.
+model Rating {
+  id           String   @id @db.Uuid
+  sessionId    String   @map("session_id") @db.Uuid
+  raterUserId  String   @map("rater_user_id") @db.Uuid
+  ratedUserId  String   @map("rated_user_id") @db.Uuid
+  rating       Int
+  feedback     String?  @db.VarChar(2000)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  session      LearningSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  rater        User     @relation("RatingRater", fields: [raterUserId], references: [id], onDelete: Restrict)
+  ratedUser    User     @relation("RatingRatedUser", fields: [ratedUserId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, raterUserId])
+  @@index([sessionId])
+  @@index([ratedUserId])
+  @@map("ratings")
 }
 
 /// Server-side Google OAuth authorization data. Tokens are never returned by the API.
