@@ -124,6 +124,8 @@ model User {
   participatingLearningSessions LearningSession[] @relation("LearningSessionParticipant")
   ratingsGiven          Rating[] @relation("RatingRater")
   ratingsReceived       Rating[] @relation("RatingRatedUser")
+  assessmentsGiven      Assessment[] @relation("AssessmentAssessor")
+  assessmentsReceived   Assessment[] @relation("AssessmentAssessedUser")
   userBadges            UserBadge[]
 
   @@unique([email])
@@ -167,6 +169,7 @@ model Skill {
   learningGoals  LearningGoal[]
   sessionRequests SessionRequest[] @relation("SessionRequestSkill")
   learningSessions LearningSession[]
+  assessments     Assessment[]
 
   @@index([name])
   @@map("skills")
@@ -318,6 +321,7 @@ model LearningSession {
   skill             Skill?                @relation(fields: [skillId], references: [id], onDelete: SetNull)
   reminders         SessionReminder[]
   ratings           Rating[]
+  assessments       Assessment[]
 
   @@index([hostUserId, status, scheduledStart])
   @@index([participantUserId, status, scheduledStart])
@@ -344,6 +348,33 @@ model Rating {
   @@index([sessionId])
   @@index([ratedUserId])
   @@map("ratings")
+}
+
+/// A participant's structured assessment of the other participant after a completed Session.
+model Assessment {
+  id                      String          @id @db.Uuid
+  sessionId               String          @map("session_id") @db.Uuid
+  assessorUserId          String          @map("assessor_user_id") @db.Uuid
+  assessedUserId          String          @map("assessed_user_id") @db.Uuid
+  skillId                 String?         @map("skill_id") @db.Uuid
+  understandingScore      Int             @map("understanding_score")
+  practicalApplicationScore Int           @map("practical_application_score")
+  problemSolvingScore     Int             @map("problem_solving_score")
+  communicationScore      Int             @map("communication_score")
+  reliabilityScore        Int             @map("reliability_score")
+  feedback                String?         @db.VarChar(2000)
+  createdAt               DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  session                 LearningSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  assessor                User            @relation("AssessmentAssessor", fields: [assessorUserId], references: [id], onDelete: Restrict)
+  assessedUser            User            @relation("AssessmentAssessedUser", fields: [assessedUserId], references: [id], onDelete: Restrict)
+  skill                   Skill?          @relation(fields: [skillId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, assessorUserId, assessedUserId])
+  @@index([sessionId])
+  @@index([assessedUserId, createdAt])
+  @@index([skillId])
+  @@map("assessments")
 }
 
 /// A system-defined achievement that can be awarded to a User.

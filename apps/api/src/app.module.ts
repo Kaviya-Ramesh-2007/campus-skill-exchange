@@ -16,6 +16,8 @@ import { SessionsModule } from './modules/sessions/sessions.module';
 import { GoogleIntegrationModule } from './modules/integrations/google/google-integration.module';
 import { RatingsModule } from './modules/ratings/ratings.module';
 import { BadgesModule } from './modules/badges/badges.module';
+import { AssessmentsModule } from './modules/assessments/assessments.module';
+import { ReputationModule } from './modules/reputation/reputation.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { BadgesModule } from './modules/badges/badges.module';
     GoogleIntegrationModule,
     RatingsModule,
     BadgesModule,
+    AssessmentsModule,
+    ReputationModule,
   ],
   providers: [AppLogger, { provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })
