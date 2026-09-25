@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { z } from 'zod';
 import {
@@ -18,6 +18,8 @@ import {
   type SessionStatus,
 } from '@campus-skill-exchange/contracts';
 import { ApiException } from '../../common/errors/api-exception';
+import { GoogleIntegrationService } from '../integrations/google/google-integration.service';
+import type { GoogleEventData, GoogleEventInput } from '../integrations/google/google.types';
 import {
   DuplicateSessionError,
   SESSIONS_REPOSITORY,
@@ -31,7 +33,12 @@ import {
 
 @Injectable()
 export class SessionsService {
-  constructor(@Inject(SESSIONS_REPOSITORY) private readonly repository: SessionsRepository) {}
+  constructor(
+    @Inject(SESSIONS_REPOSITORY) private readonly repository: SessionsRepository,
+    @Optional()
+    @Inject(GoogleIntegrationService)
+    private readonly google?: GoogleIntegrationService,
+  ) {}
 
   async create(actorUserId: string, input: unknown): Promise<Session> {
     const data = this.parse(createSessionSchema, input);
@@ -40,15 +47,25 @@ export class SessionsService {
       actorUserId,
     );
     const id = randomUUID();
+    const googleData =
+      data.mode === 'ONLINE' ? await this.createGoogleEvent(actorUserId, id, request, data) : null;
     try {
       const row = await this.repository.create(
         id,
         actorUserId,
         data,
         this.createScheduledEvent(actorUserId, id, request, data, sessionScheduledEventDefinition),
+        googleData,
       );
       return this.toResponse(row);
     } catch (error) {
+      if (googleData && this.google) {
+        try {
+          await this.google.deleteEvent(actorUserId, googleData.eventId);
+        } catch {
+          // Preserve the original persistence error.
+        }
+      }
       this.rethrowCreateError(error);
     }
   }
@@ -145,16 +162,101 @@ export class SessionsService {
           ]
         : []),
     ];
+    let googleData: GoogleEventData | null | undefined;
+    if (existing.mode === 'ONLINE') {
+      if (data.status === 'CANCELLED') {
+        if (!this.google) {
+          throw new ApiException(
+            503,
+            'DEPENDENCY_UNAVAILABLE',
+            'Google integration is not available.',
+          );
+        }
+        await this.google.deleteEvent(userId, existing.googleCalendarEventId);
+        googleData = null;
+      } else if (scheduleChanged) {
+        if (!this.google || !existing.googleCalendarEventId) {
+          throw new ApiException(409, 'CONFLICT', 'The Google Calendar event is not available.');
+        }
+        const attendees = this.repository.findParticipantEmails
+          ? await this.repository.findParticipantEmails([
+              existing.host.userId,
+              existing.participant.userId,
+            ])
+          : [];
+        googleData = await this.google.updateEvent(
+          userId,
+          existing.googleCalendarEventId,
+          this.googleEventInput(
+            sessionId,
+            { scheduledStart, scheduledEnd, timezone },
+            attendees.map((participant) => participant.email),
+          ),
+          {
+            eventId: existing.googleCalendarEventId,
+            conferenceId: existing.googleConferenceId,
+            meetingUrl: existing.meetingUrl,
+            conferenceStatus: existing.googleConferenceStatus ?? 'PENDING',
+          },
+        );
+      }
+    }
     const updated = await this.repository.update(
       sessionId,
       existing.status,
       update,
       events,
       scheduleChanged,
+      googleData,
     );
     if (!updated)
       throw new ApiException(409, 'CONFLICT', 'The session changed before it could be updated.');
     return this.toResponse(updated);
+  }
+
+  private async createGoogleEvent(
+    actorUserId: string,
+    sessionId: string,
+    request: SessionRequestRecord,
+    input: CreateSession,
+  ): Promise<GoogleEventData> {
+    if (!this.google) {
+      throw new ApiException(503, 'DEPENDENCY_UNAVAILABLE', 'Google integration is not available.');
+    }
+    const attendees = this.repository.findParticipantEmails
+      ? await this.repository.findParticipantEmails([
+          request.requesterUserId,
+          request.recipientUserId,
+        ])
+      : [];
+    return this.google.createEvent(
+      actorUserId,
+      this.googleEventInput(
+        sessionId,
+        {
+          scheduledStart: new Date(input.scheduledStart),
+          scheduledEnd: new Date(input.scheduledEnd),
+          timezone: input.timezone,
+        },
+        attendees.map((participant) => participant.email),
+      ),
+    );
+  }
+
+  private googleEventInput(
+    sessionId: string,
+    session: { scheduledStart: Date; scheduledEnd: Date; timezone: string },
+    attendeeEmails: string[],
+  ): GoogleEventInput {
+    return {
+      sessionId,
+      summary: 'Campus Skill Exchange Session',
+      description: 'A skill exchange session scheduled through Campus Skill Exchange.',
+      start: session.scheduledStart,
+      end: session.scheduledEnd,
+      timezone: session.timezone,
+      attendeeEmails,
+    };
   }
 
   private requireRequestForCreate(

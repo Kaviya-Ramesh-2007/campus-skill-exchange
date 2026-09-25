@@ -36,6 +36,9 @@ const sessionRow = {
   timezone: 'UTC',
   meetingUrl: null,
   locationDetails: null,
+  googleCalendarEventId: null,
+  googleConferenceId: null,
+  googleConferenceStatus: null,
   createdAt: now,
   updatedAt: now,
 };

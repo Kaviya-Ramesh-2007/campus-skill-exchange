@@ -84,6 +84,12 @@ enum SessionReminderStatus {
   CANCELLED
 }
 
+enum GoogleConferenceStatus {
+  PENDING
+  READY
+  FAILED
+}
+
 enum OutboxProcessingStatus {
   PENDING
   PROCESSING
@@ -111,6 +117,7 @@ model User {
   availabilitySlots  Availability[]
   certifications     Certification[]
   projects           Project[]
+  googleConnection   GoogleConnection?
   sentSessionRequests SessionRequest[] @relation("SessionRequester")
   receivedSessionRequests SessionRequest[] @relation("SessionRequestRecipient")
   hostedLearningSessions LearningSession[] @relation("LearningSessionHost")
@@ -296,6 +303,9 @@ model LearningSession {
   scheduledEnd      DateTime              @map("scheduled_end") @db.Timestamptz(6)
   timezone          String                @db.VarChar(64)
   meetingUrl        String?               @map("meeting_url") @db.VarChar(2048)
+  googleCalendarEventId String?            @map("google_calendar_event_id") @db.VarChar(255)
+  googleConferenceId String?              @map("google_conference_id") @db.VarChar(255)
+  googleConferenceStatus GoogleConferenceStatus? @map("google_conference_status")
   locationDetails   String?               @map("location_details") @db.VarChar(1000)
   createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -308,7 +318,23 @@ model LearningSession {
   @@index([hostUserId, status, scheduledStart])
   @@index([participantUserId, status, scheduledStart])
   @@index([scheduledStart])
+  @@index([googleCalendarEventId])
   @@map("learning_sessions")
+}
+
+/// Server-side Google OAuth authorization data. Tokens are never returned by the API.
+model GoogleConnection {
+  id                    String    @id @db.Uuid
+  userId                String    @unique @map("user_id") @db.Uuid
+  accessToken           String    @map("access_token") @db.Text
+  refreshToken          String?   @map("refresh_token") @db.Text
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  scope                 String    @default("") @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("google_connections")
 }
 
 /// A future-dated reminder record. Delivery is intentionally not implemented.

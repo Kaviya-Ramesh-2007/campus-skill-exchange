@@ -725,6 +725,7 @@ export const sessionSchema = z
     timezone: z.string(),
     meetingUrl: externalUrlSchema.nullable(),
     locationDetails: z.string().nullable(),
+    googleConferenceStatus: z.enum(['PENDING', 'READY', 'FAILED']).nullable(),
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
   })
@@ -831,6 +832,19 @@ export const sessionReminder10mEventDefinition = defineEvent({
   ownerModule: 'sessions',
   payloadSchema: sessionReminderEventPayloadSchema,
 });
+
+export const googleConnectionStatusSchema = z
+  .object({
+    connected: z.boolean(),
+    scopes: z.array(z.string()).default([]),
+    expiresAt: timestampSchema.nullable().optional(),
+  })
+  .strict();
+export type GoogleConnectionStatus = z.infer<typeof googleConnectionStatusSchema>;
+export const googleConnectResponseSchema = z
+  .object({ authorizationUrl: z.string().url() })
+  .strict();
+export type GoogleConnectResponse = z.infer<typeof googleConnectResponseSchema>;
 
 export const eventTypeSchema = z.string().regex(/^[A-Z][A-Z0-9_]*$/, {
   message: 'Event types must use UPPER_SNAKE_CASE.',

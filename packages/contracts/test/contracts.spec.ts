@@ -341,6 +341,7 @@ describe('shared contracts', () => {
         timezone: 'UTC',
         meetingUrl: null,
         locationDetails: null,
+        googleConferenceStatus: null,
         createdAt: timestamp,
         updatedAt: timestamp,
         email: 'must-not@example.test',

@@ -13,6 +13,13 @@ export const SESSIONS_REPOSITORY = Symbol('SESSIONS_REPOSITORY');
 export type SessionIdentity = Pick<Session['host'], 'userId' | 'displayName'>;
 export type SessionSkill = NonNullable<Session['skill']>;
 
+export interface SessionGoogleData {
+  eventId: string;
+  conferenceId: string | null;
+  meetingUrl: string | null;
+  conferenceStatus: 'PENDING' | 'READY' | 'FAILED';
+}
+
 export interface SessionRecord {
   id: string;
   sessionRequestId: string;
@@ -26,6 +33,9 @@ export interface SessionRecord {
   timezone: string;
   meetingUrl: string | null;
   locationDetails: string | null;
+  googleCalendarEventId: string | null;
+  googleConferenceId: string | null;
+  googleConferenceStatus: 'PENDING' | 'READY' | 'FAILED' | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +45,12 @@ export interface SessionRequestRecord {
   recipientUserId: string;
   skillId: string | null;
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
+}
+
+export interface SessionParticipantDirectory {
+  userId: string;
+  email: string;
+  displayName: string;
 }
 
 export interface SessionListResult {
@@ -53,6 +69,7 @@ export type SessionUpdate = {
 
 export interface SessionsRepository {
   findRequest(requestId: string): Promise<SessionRequestRecord | null>;
+  findParticipantEmails?: (userIds: string[]) => Promise<SessionParticipantDirectory[]>;
   findById(id: string): Promise<SessionRecord | null>;
   list(userId: string, page: number, limit: number): Promise<SessionListResult>;
   create(
@@ -60,6 +77,7 @@ export interface SessionsRepository {
     actorUserId: string,
     input: CreateSession,
     event: EventEnvelope<SessionEventPayload>,
+    googleData?: SessionGoogleData | null,
   ): Promise<SessionRecord>;
   update(
     id: string,
@@ -67,6 +85,7 @@ export interface SessionsRepository {
     update: SessionUpdate,
     events: EventEnvelope<SessionEventPayload>[],
     scheduleChanged: boolean,
+    googleData?: SessionGoogleData | null,
   ): Promise<SessionRecord | null>;
 }
 
