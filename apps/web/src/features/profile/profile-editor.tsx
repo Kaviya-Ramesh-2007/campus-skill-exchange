@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { Alert, Button, Card, Input } from '@campus-skill-exchange/ui';
-import type {
-  CreateProfileRequest,
-  Profile,
-  ProfileVisibility,
-  UpdateProfileRequest,
+import {
+  createProfileRequestSchema,
+  updateProfileRequestSchema,
+  type CreateProfileRequest,
+  type Profile,
+  type ProfileVisibility,
+  type UpdateProfileRequest,
 } from '@campus-skill-exchange/contracts';
 import { ApiClientError } from '../../services/api-client';
 import { createProfile, updateProfile } from './profile-api';
@@ -49,6 +51,7 @@ export function ProfileEditor({ profile, accountDisplayName }: ProfileEditorProp
   );
   const [isInitialized, setIsInitialized] = useState(profile !== null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clientFieldErrors, setClientFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<ApiClientError | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -60,13 +63,22 @@ export function ProfileEditor({ profile, accountDisplayName }: ProfileEditorProp
     event.preventDefault();
     setError(null);
     setSuccess(null);
-    setIsSubmitting(true);
+    setClientFieldErrors({});
 
     const input = toRequest(values);
+    const validation = isInitialized
+      ? updateProfileRequestSchema.safeParse(input)
+      : createProfileRequestSchema.safeParse(input);
+    if (!validation.success) {
+      setClientFieldErrors(toFieldErrors(validation.error.issues));
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const savedProfile = isInitialized
-        ? await updateProfile(input as UpdateProfileRequest)
-        : await createProfile(input as CreateProfileRequest);
+        ? await updateProfile(validation.data as UpdateProfileRequest)
+        : await createProfile(validation.data as CreateProfileRequest);
       setIsInitialized(true);
       setValues(toFormValues(savedProfile, accountDisplayName));
       setSuccess(
@@ -87,7 +99,7 @@ export function ProfileEditor({ profile, accountDisplayName }: ProfileEditorProp
     }
   }
 
-  const fieldError = (field: string) => getFieldError(error, field);
+  const fieldError = (field: string) => clientFieldErrors[field] ?? getFieldError(error, field);
 
   return (
     <Card title={isInitialized ? 'Edit your profile' : 'Create your profile'}>
@@ -292,6 +304,17 @@ function toRequest(values: ProfileFormValues): CreateProfileRequest | UpdateProf
     portfolioUrl: optional(values.portfolioUrl),
     visibility: values.visibility,
   };
+}
+
+function toFieldErrors(
+  issues: readonly { path: PropertyKey[]; message: string }[],
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const issue of issues) {
+    const field = issue.path[0];
+    if (typeof field === 'string' && !errors[field]) errors[field] = issue.message;
+  }
+  return errors;
 }
 
 function getFieldError(error: ApiClientError | null, field: string): string | undefined {
