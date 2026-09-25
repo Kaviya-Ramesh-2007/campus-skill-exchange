@@ -129,6 +129,23 @@ enum TransactionStatus {
   FAILED
 }
 
+enum ReportCategory {
+  HARASSMENT
+  SPAM
+  FAKE_PROFILE
+  SUSPICIOUS_PAYMENT
+  FRAUDULENT_CERTIFICATION
+  INAPPROPRIATE_CONTENT
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
 enum NotificationType {
   REQUEST_SENT
   REQUEST_ACCEPTED
@@ -177,6 +194,8 @@ model User {
   paymentTermsAccepted  Payment[] @relation("PaymentTermsAcceptor")
   transactions         Transaction[]
   notifications         Notification[]
+  reportsFiled          Report[] @relation("ReportReporter")
+  reportsReceived       Report[] @relation("ReportReportedUser")
   userBadges            UserBadge[]
 
   @@unique([email])
@@ -490,6 +509,26 @@ model Transaction {
   @@index([userId, createdAt])
   @@index([sessionId, createdAt])
   @@map("transactions")
+}
+
+/// A safety report a User filed about another User.
+model Report {
+  id             String          @id @db.Uuid
+  reporterUserId String          @map("reporter_user_id") @db.Uuid
+  reportedUserId String          @map("reported_user_id") @db.Uuid
+  category       ReportCategory
+  description    String          @db.VarChar(2000)
+  status         ReportStatus    @default(OPEN)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resolvedAt     DateTime?       @map("resolved_at") @db.Timestamptz(6)
+  reporter       User            @relation("ReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
+  reportedUser   User            @relation("ReportReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  @@index([reporterUserId, createdAt])
+  @@index([reportedUserId])
+  @@index([status, createdAt])
+  @@map("reports")
 }
 
 /// An in-app notification derived from a real domain event.
