@@ -2,13 +2,69 @@
 
 ## Current database foundation
 
-PostgreSQL is the only supported relational database. The Foundation schema contains one product-independent platform table:
+PostgreSQL is the only supported relational database. The Foundation schema contained one product-independent platform table:
 
 - `outbox_events`
 
-The Prisma schema is at `database/prisma/schema.prisma`. The first migration is at `database/prisma/migrations/20260924000000_outbox_foundation/migration.sql`.
+Prompt 1 adds the minimum identity/session tables:
 
-No product tables such as users, skills, sessions, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
+- `users`
+- `user_roles`
+- `auth_identities`
+- `password_credentials`
+- `sessions`
+
+Prompt 2 adds the profile foundation table:
+
+- `profiles`
+
+Prompt 3 adds the skill catalog and user-skill association tables:
+
+- `skills`
+- `user_skills`
+
+Prompt 4 adds the user-owned development and portfolio tables:
+
+- `learning_goals`
+- `availability`
+- `certifications`
+- `projects`
+
+The Session Request data store adds:
+
+- `session_requests`
+
+The Session Core data store adds:
+
+- `learning_sessions`
+
+The Session Reminder data store adds:
+
+- `session_reminders`
+
+The Google integration adds:
+
+- `google_connections`
+- Google Calendar/Meet identifiers on `learning_sessions`
+
+The Rating API adds:
+
+- `ratings`
+
+The Badge data store adds:
+
+- `badge_definitions`
+- `user_badges`
+
+The Payments and Transactions data store adds:
+
+- Payment fields on `learning_sessions` (`FREE`/`PAID`, INR paise price, terms version)
+- `payments`
+- `transactions`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, Session Request, Session Core, Session Reminder, Google integration, Rating, Badge, Assessment/Reputation, and Payments migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql`, the Session Core migration is `20260930000000_learning_session_core/migration.sql`, the Session Reminder migration is `20260930010000_session_reminders/migration.sql`, the Google integration migration is `20260930020000_google_meet_integration/migration.sql`, the Rating migration is `20260930030000_rating_foundation/migration.sql`, the Badge migration is `20260930040000_badge_data_store/migration.sql`, the Assessment/Reputation migration is `20260930050000_assessment_reputation/migration.sql`, and the Payments/Transactions migration is `20260930060000_payments_transactions/migration.sql`.
+
+The `sessions` table remains the authentication cookie-token store. Additional scheduling features, assessments, notifications, and reports are introduced incrementally by their owning feature prompts.
 
 ## Configuration
 
@@ -19,6 +75,46 @@ postgresql://campus_skill_exchange:change-me@localhost:5432/campus_skill_exchang
 ```
 
 Never commit real credentials.
+
+## Identity and session tables
+
+Prompt 1 uses normalized lowercase email storage with a database check constraint and unique index. `UserRole` stores server-managed `USER` and `ADMIN` permissions. `AuthIdentity` separates provider identity from the internal user, and `PasswordCredential` stores only Argon2id hashes. `Session` stores only a SHA-256 hash of an opaque cookie token, with expiration and revocation timestamps.
+
+Registration never accepts a role from the request. The server creates the `USER` role in the same transaction as the local identity and credential.
+
+## Profile table
+
+`profiles` is a one-to-one presentation record for an existing `users` row. The `user_id` foreign key is unique and cascades only when the owning identity is removed. `public_display_name` is an optional public presentation name; when it is absent, the API uses the existing `User.displayName`. Authentication fields, sessions, account status, and system roles are not stored in `profiles`.
+
+Profile URLs are stored as bounded `VARCHAR(2048)` references and are validated as HTTP/HTTPS URLs by the API. `interests` is a bounded PostgreSQL text array, normalized and de-duplicated by the application. `visibility` controls whether the public profile route exposes the record. A successful profile update and its `PROFILE_UPDATED` outbox row are committed in one transaction.
+
+## Session Request table
+
+`session_requests` stores direct requests between two existing `users` without introducing a product Session or scheduling workflow. The requester and recipient foreign keys cascade when a User is removed; the optional Skill foreign key uses `SET NULL` so a request remains valid when its referenced Skill is removed. A database check prevents a requester and recipient from being the same User. Composite indexes cover requester/status/created-at and recipient/status/created-at lookups, and a partial unique index prevents duplicate `PENDING` or `ACCEPTED` requests for the same requester, recipient, and optional Skill.
+
+## Learning Session table
+
+`learning_sessions` stores the core schedule for an accepted `session_requests` row and is intentionally separate from the authentication `sessions` table. It enforces one Session per SessionRequest, distinct host and participant Users, a positive time range, and a non-empty timezone. Host/participant and schedule indexes support participant access and chronological queries. Meeting URLs and location details are stored only as bounded references/text; no offline-location or notification integration is included.
+
+## Rating table
+
+`ratings` stores one optional-feedback rating from a session participant to the other participant after a `COMPLETED` `learning_sessions` row. Ratings are constrained to integer values from 1 through 5, reject self-ratings, and use a unique `(session_id, rater_user_id)` boundary. Rating foreign keys restrict ordinary deletion of a referenced User or Session so rating history is not removed by a cascade. The API derives the rater from the authenticated session, limits access to session participants, and returns only safe display identities and rating content. A successful rating and its versioned `RATING_SUBMITTED` outbox event are written in one transaction.
+
+## Badge data store
+
+`badge_definitions` stores the system-owned badge catalog, with a unique stable `code`, bounded presentation fields, and an optional externally managed `icon_url` reference. `user_badges` records one award per User and BadgeDefinition, with `awarded_at` and a unique `(user_id, badge_definition_id)` boundary. User foreign keys cascade with the owning account; badge-definition foreign keys restrict deletion so awarded history cannot be silently removed. The Badge service exposes controlled future awarding; no eligibility rules, public award route, UI, reputation, or notification workflow is included. A newly created award writes a `BADGE_EARNED` outbox event in the same transaction, while an existing award is idempotent and emits no second event.
+
+## Payments and Transactions
+
+Paid `learning_sessions` store a server-authoritative INR `price_paise` and `terms_version`; FREE sessions store no price. `payments` uses integer paise, Razorpay provider references, explicit terms acceptance timestamps/owners, bounded refund amounts, and a unique `(session_id, payer_user_id)` boundary. `transactions` is an immutable PAYMENT/REFUND ledger with provider references and idempotency boundaries. Razorpay secrets remain server-side; payment success requires server-side signature verification and signed webhook confirmation. Refunds are provider-backed, amount-bounded, and never inferred from negative feedback.
+
+## Session Reminder table
+
+`session_reminders` stores future reminder records for scheduled `learning_sessions`. The unique `(session_id, reminder_type)` boundary prevents duplicates, and the status/scheduled-for index supports a future dispatcher. Reminder records are created and rescheduled transactionally with the Session, and pending reminders are cancelled when the Session is no longer scheduled. Reminder rows and outbox events do not claim delivery; no email, push, or SMS worker is implemented.
+
+## Google integration storage
+
+`google_connections` stores one server-side Google authorization per User, including the refresh-capable token set. Tokens are never returned by the API. `learning_sessions` stores only the Google Calendar event ID, conference ID/status, and a Meet URL received from Google; a URL is never constructed locally. Conference creation may remain `PENDING` until Google returns a real URL.
 
 ## Prisma workflow
 
@@ -69,7 +165,7 @@ The `outbox_events` table is a minimal durable hand-off for future domain events
 3. Commit both atomically.
 4. Allow a future dispatcher/consumer to process the event idempotently.
 
-The Foundation does not implement event dispatch, retries, notifications, badges, analytics, or business event producers.
+The Foundation does not implement event dispatch, retries, notifications, reputation, analytics, or business event producers. Prompt 2 adds a versioned `PROFILE_UPDATED` producer backed by the same transactional outbox, the Rating API adds a versioned `RATING_SUBMITTED` producer, and the Badge service adds a versioned `BADGE_EARNED` producer; these modules do not implement a dispatcher or consumer.
 
 ## Future module ownership
 

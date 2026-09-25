@@ -4,25 +4,28 @@ import { Alert } from '@campus-skill-exchange/ui';
 export default function FoundationPage() {
   return (
     <div className="hero">
-      <p className="eyebrow">Foundation infrastructure</p>
+      <p className="eyebrow">Professional profiles</p>
       <h1>Campus Skill Exchange</h1>
       <p className="hero__tagline">Learn. Teach. Exchange. Grow.</p>
       <p className="hero__description">
-        The technical foundation is ready for future product modules. This page intentionally does
-        not display users, skills, matches, sessions, or other product data.
+        Secure local identity and professional profiles are now available. Build meaningful
+        connections on authenticated server sessions without trusting a browser-provided user ID.
       </p>
       <div className="hero__actions">
-        <Link href="/health" className="cse-button cse-button--primary cse-button--md">
-          View infrastructure health
+        <Link href="/auth/login" className="cse-button cse-button--primary cse-button--md">
+          Sign in
+        </Link>
+        <Link href="/auth/register" className="cse-button cse-button--secondary cse-button--md">
+          Create account
         </Link>
       </div>
-      <Alert severity="info" title="Foundation boundary">
-        Authentication and product features will be added in later prompts. No external provider is
-        connected yet.
+      <Alert severity="info" title="Built for verified campus exchange">
+        Every participant is a single User account. Verified certifications, completed sessions and
+        real feedback build a reputation you can take with you.
       </Alert>
       <p className="foundation-note">
-        The application shell, shared contracts, database migration workflow, API conventions, and
-        design-system primitives are intentionally separated from product behavior.
+        Sessions, payments, ratings, assessments, badges and safety reports are all recorded against
+        your verified account.
       </p>
     </div>
   );

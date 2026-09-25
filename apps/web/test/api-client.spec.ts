@@ -20,6 +20,17 @@ describe('API client foundation', () => {
     await expect(apiRequest<{ status: string }>('/health')).resolves.toEqual({ status: 'ok' });
   });
 
+  it('supports cookie-authenticated no-content responses', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiRequest<void>('/auth/logout', { method: 'POST' })).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/auth/logout',
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    );
+  });
+
   it('maps a structured API error', async () => {
     vi.stubGlobal(
       'fetch',

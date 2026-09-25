@@ -1,3 +1,10 @@
 # Web application
 
-Next.js Foundation shell. It currently provides the root infrastructure page, health-route information, loading/error/not-found boundaries, and a typed API client foundation. Product pages are intentionally not implemented yet.
+Next.js shell with infrastructure, local sign-in/registration, authenticated account context, and professional profile routes:
+
+- `/profile` — view the current user's profile or initialize it;
+- `/profile/edit` — create or edit the current user's profile;
+- `/badges` — view earned and available badges for the authenticated user;
+- `/users/[userId]/profile` — view a public profile when available.
+
+Profile screens use the shared accessible UI primitives, the typed API client, and real authenticated data. They provide loading, empty, error, validation, success, responsive, and keyboard-accessible states. No fake profile data, file upload, skill catalog, matching, or other later product module is included.

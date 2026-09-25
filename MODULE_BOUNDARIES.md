@@ -47,16 +47,18 @@ The only initial system authorization roles are `USER` and `ADMIN`.
 - `admin` must call owning-module services so validation and audit rules remain centralized.
 - Database migrations are reviewed centrally, but feature modules own their table definitions.
 
-## Foundation implementation
+## Current implementation
 
-The current repository implements only:
+The repository currently implements:
 
 - `health` infrastructure endpoints;
-- `database`/Prisma infrastructure;
-- platform configuration, logging, and validation;
-- shared contracts and outbox schema.
+- `auth` local account, session, and authorization foundation;
+- `users` professional profile, visibility, validation, and ownership boundaries;
+- `database`/Prisma infrastructure, identity, profile migrations, and transactional outbox writes;
+- platform configuration, logging, validation, and provider interfaces;
+- shared contracts, profile DTOs, and the `PROFILE_UPDATED` event definition.
 
-No product domain module is implemented yet. Empty feature modules are intentionally avoided.
+The `auth` module owns identity/session data and exposes safe authentication services. The `users` module reads the existing `User.displayName` through its profile query and never imports the auth repository or credential models. Profile events contain references and changed-field names, not credentials or unnecessary personal data. Skill, matching, and other product modules remain future work. Empty feature modules are intentionally avoided.
 
 ## Review checklist
 

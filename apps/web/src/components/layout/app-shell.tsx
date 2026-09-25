@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Badge } from '@campus-skill-exchange/ui';
+import { AuthNavigation } from '../../features/auth/auth-navigation';
+import { PrimaryNavigation } from '../../features/navigation/primary-navigation';
+import { NotificationBell } from '../../features/notifications/notification-bell';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -19,18 +21,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               <small>Learn. Teach. Exchange. Grow.</small>
             </span>
           </Link>
-          <nav aria-label="Primary navigation">
-            <Link href="/">Foundation</Link>
-            <Link href="/health">Infrastructure health</Link>
-          </nav>
-          <Badge tone="info">Foundation</Badge>
+          <PrimaryNavigation />
+          <AuthNavigation />
+          <NotificationBell />
         </div>
       </header>
       <main id="main-content" className="site-main">
         {children}
       </main>
       <footer className="site-footer">
-        <p>Campus Skill Exchange foundation infrastructure</p>
+        <p>Campus Skill Exchange — learn, teach and exchange skills with your campus peers.</p>
       </footer>
     </div>
   );

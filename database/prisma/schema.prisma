@@ -7,6 +7,89 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SystemRole {
+  USER
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ProfileVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum SkillProficiency {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum LearningPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum CertificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum SessionRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum LearningSessionMode {
+  ONLINE
+  OFFLINE
+}
+
+enum LearningSessionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum SessionReminderType {
+  TWENTY_FOUR_HOURS
+  ONE_HOUR
+  TEN_MINUTES
+}
+
+enum SessionReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum GoogleConferenceStatus {
+  PENDING
+  READY
+  FAILED
+}
+
 enum OutboxProcessingStatus {
   PENDING
   PROCESSING
@@ -14,8 +97,580 @@ enum OutboxProcessingStatus {
   FAILED
 }
 
+enum SessionPaymentMode {
+  FREE
+  PAID
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum ReportCategory {
+  HARASSMENT
+  SPAM
+  FAKE_PROFILE
+  SUSPICIOUS_PAYMENT
+  FRAUDULENT_CERTIFICATION
+  INAPPROPRIATE_CONTENT
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum NotificationType {
+  REQUEST_SENT
+  REQUEST_ACCEPTED
+  REQUEST_DECLINED
+  SESSION_SCHEDULED
+  SESSION_UPDATED
+  SESSION_CANCELLED
+  PAYMENT_CAPTURED
+  PAYMENT_FAILED
+  REFUND_REQUESTED
+  REFUND_COMPLETED
+  BADGE_EARNED
+}
+
+/// A participant is always a User. System roles are authorization permissions,
+/// not participant identities.
+model User {
+  id                 String              @id @db.Uuid
+  /// Stored lowercase; the migration adds a database check constraint.
+  email              String              @db.VarChar(320)
+  displayName        String              @map("display_name") @db.VarChar(120)
+  accountStatus      AccountStatus       @default(ACTIVE) @map("account_status")
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  roles              UserRole[]
+  identities         AuthIdentity[]
+  passwordCredential PasswordCredential?
+  sessions           Session[]
+  profile            Profile?
+  userSkills         UserSkill[]
+  learningGoals      LearningGoal[]
+  availabilitySlots  Availability[]
+  certifications     Certification[]
+  projects           Project[]
+  googleConnection   GoogleConnection?
+  sentSessionRequests SessionRequest[] @relation("SessionRequester")
+  receivedSessionRequests SessionRequest[] @relation("SessionRequestRecipient")
+  hostedLearningSessions LearningSession[] @relation("LearningSessionHost")
+  participatingLearningSessions LearningSession[] @relation("LearningSessionParticipant")
+  ratingsGiven          Rating[] @relation("RatingRater")
+  ratingsReceived       Rating[] @relation("RatingRatedUser")
+  assessmentsGiven      Assessment[] @relation("AssessmentAssessor")
+  assessmentsReceived   Assessment[] @relation("AssessmentAssessedUser")
+  paymentsMade          Payment[] @relation("PaymentPayer")
+  paymentsReceived      Payment[] @relation("PaymentRecipient")
+  paymentTermsAccepted  Payment[] @relation("PaymentTermsAcceptor")
+  transactions         Transaction[]
+  notifications         Notification[]
+  reportsFiled          Report[] @relation("ReportReporter")
+  reportsReceived       Report[] @relation("ReportReportedUser")
+  userBadges            UserBadge[]
+
+  @@unique([email])
+  @@index([accountStatus])
+  @@map("users")
+}
+
+/// A profile is presentation data owned by an existing User. Authentication
+/// credentials, sessions, account status, and system roles remain in identity
+/// tables and are never copied into this model.
+model Profile {
+  id                String            @id @db.Uuid
+  userId            String            @unique @map("user_id") @db.Uuid
+  publicDisplayName String?           @map("public_display_name") @db.VarChar(120)
+  department        String?           @db.VarChar(120)
+  academicYear      String?           @map("academic_year") @db.VarChar(32)
+  institution       String?           @db.VarChar(160)
+  bio               String?           @db.VarChar(2000)
+  profileImageUrl   String?           @map("profile_image_url") @db.VarChar(2048)
+  interests         String[]          @default([])
+  githubUrl         String?           @map("github_url") @db.VarChar(2048)
+  portfolioUrl      String?           @map("portfolio_url") @db.VarChar(2048)
+  visibility        ProfileVisibility @default(PUBLIC)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([visibility])
+  @@map("profiles")
+}
+
+/// A canonical catalog entry. The normalized name is the duplicate-prevention
+/// boundary; display casing is retained separately for presentation.
+model Skill {
+  id             String      @id @db.Uuid
+  name           String      @db.VarChar(120)
+  normalizedName String      @unique @map("normalized_name") @db.VarChar(120)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userSkills     UserSkill[]
+  learningGoals  LearningGoal[]
+  sessionRequests SessionRequest[] @relation("SessionRequestSkill")
+  learningSessions LearningSession[]
+  assessments     Assessment[]
+
+  @@index([name])
+  @@map("skills")
+}
+
+/// A contextual capability association for one User and one catalog Skill.
+/// It does not define a permanent participant identity or system role.
+model UserSkill {
+  id          String           @id @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  skillId     String           @map("skill_id") @db.Uuid
+  proficiency SkillProficiency @default(BEGINNER)
+  canTeach    Boolean          @default(false) @map("can_teach")
+  description String?          @db.VarChar(1000)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill       Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@index([userId])
+  @@index([skillId])
+  @@index([userId, canTeach])
+  @@index([skillId, canTeach])
+  @@map("user_skills")
+}
+
+/// A user's desired growth direction for one catalog skill.
+model LearningGoal {
+  id           String           @id @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  skillId      String           @map("skill_id") @db.Uuid
+  currentLevel SkillProficiency @default(BEGINNER) @map("current_level")
+  targetLevel  SkillProficiency @map("target_level")
+  description  String?          @db.VarChar(2000)
+  priority     LearningPriority @default(MEDIUM)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill        Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@index([skillId])
+  @@index([userId, priority])
+  @@map("learning_goals")
+}
+
+/// A recurring weekly availability slot owned by a User.
+model Availability {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  dayOfWeek DayOfWeek @map("day_of_week")
+  startTime String    @map("start_time") @db.VarChar(5)
+  endTime   String    @map("end_time") @db.VarChar(5)
+  timezone  String    @default("UTC") @db.VarChar(64)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOfWeek, startTime, endTime, timezone])
+  @@index([userId, dayOfWeek, isActive])
+  @@map("availability")
+}
+
+/// A user-submitted certification. Verification is always an explicit future workflow.
+model Certification {
+  id                  String              @id @db.Uuid
+  userId              String              @map("user_id") @db.Uuid
+  title               String              @db.VarChar(160)
+  issuingOrganization String              @map("issuing_organization") @db.VarChar(160)
+  credentialId        String?             @map("credential_id") @db.VarChar(160)
+  issueDate           DateTime?           @map("issue_date") @db.Date
+  expiryDate          DateTime?           @map("expiry_date") @db.Date
+  proofUrl            String?             @map("proof_url") @db.VarChar(2048)
+  status              CertificationStatus @default(PENDING)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("certifications")
+}
+
+/// A user-owned portfolio project; demonstrated skills remain contextual data.
+model Project {
+  id            String    @id @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  title         String    @db.VarChar(160)
+  description   String    @db.VarChar(4000)
+  technologies  String[]  @default([])
+  projectUrl    String?   @map("project_url") @db.VarChar(2048)
+  repositoryUrl String?   @map("repository_url") @db.VarChar(2048)
+  startDate     DateTime? @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+  @@map("projects")
+}
+
+/// A direct request for a future learning session between two Users.
+/// Scheduling is intentionally not part of this model.
+model SessionRequest {
+  id              String               @id @db.Uuid
+  requesterUserId String               @map("requester_user_id") @db.Uuid
+  recipientUserId String               @map("recipient_user_id") @db.Uuid
+  skillId         String?              @map("skill_id") @db.Uuid
+  message         String?              @db.VarChar(2000)
+  status          SessionRequestStatus @default(PENDING)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  requester       User                 @relation("SessionRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  recipient       User                 @relation("SessionRequestRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  skill           Skill?               @relation("SessionRequestSkill", fields: [skillId], references: [id], onDelete: SetNull)
+  learningSession  LearningSession?
+
+  @@index([requesterUserId, status, createdAt])
+  @@index([recipientUserId, status, createdAt])
+  @@index([skillId])
+  @@map("session_requests")
+}
+
+/// A scheduled learning session created from an accepted SessionRequest.
+/// The authentication `Session` model remains separate and owns cookie tokens.
+model LearningSession {
+  id                String                @id @db.Uuid
+  sessionRequestId  String                @unique @map("session_request_id") @db.Uuid
+  hostUserId        String                @map("host_user_id") @db.Uuid
+  participantUserId String                @map("participant_user_id") @db.Uuid
+  skillId           String?               @map("skill_id") @db.Uuid
+  mode              LearningSessionMode
+  status            LearningSessionStatus @default(SCHEDULED)
+  scheduledStart    DateTime              @map("scheduled_start") @db.Timestamptz(6)
+  scheduledEnd      DateTime              @map("scheduled_end") @db.Timestamptz(6)
+  timezone          String                @db.VarChar(64)
+  paymentMode       SessionPaymentMode    @default(FREE) @map("payment_mode")
+  pricePaise        Int?                  @map("price_paise")
+  termsVersion      String?               @map("terms_version") @db.VarChar(64)
+  meetingUrl        String?               @map("meeting_url") @db.VarChar(2048)
+  googleCalendarEventId String?            @map("google_calendar_event_id") @db.VarChar(255)
+  googleConferenceId String?              @map("google_conference_id") @db.VarChar(255)
+  googleConferenceStatus GoogleConferenceStatus? @map("google_conference_status")
+  locationDetails   String?               @map("location_details") @db.VarChar(1000)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sessionRequest    SessionRequest        @relation(fields: [sessionRequestId], references: [id], onDelete: Restrict)
+  host              User                  @relation("LearningSessionHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  participant       User                  @relation("LearningSessionParticipant", fields: [participantUserId], references: [id], onDelete: Cascade)
+  skill             Skill?                @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  reminders         SessionReminder[]
+  ratings           Rating[]
+  assessments       Assessment[]
+  payments          Payment[]
+  transactions      Transaction[]
+
+  @@index([hostUserId, status, scheduledStart])
+  @@index([participantUserId, status, scheduledStart])
+  @@index([scheduledStart])
+  @@index([googleCalendarEventId])
+  @@map("learning_sessions")
+}
+
+/// A User's rating of their session partner after a completed Session.
+model Rating {
+  id           String   @id @db.Uuid
+  sessionId    String   @map("session_id") @db.Uuid
+  raterUserId  String   @map("rater_user_id") @db.Uuid
+  ratedUserId  String   @map("rated_user_id") @db.Uuid
+  rating       Int
+  feedback     String?  @db.VarChar(2000)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  session      LearningSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  rater        User     @relation("RatingRater", fields: [raterUserId], references: [id], onDelete: Restrict)
+  ratedUser    User     @relation("RatingRatedUser", fields: [ratedUserId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, raterUserId])
+  @@index([sessionId])
+  @@index([ratedUserId])
+  @@map("ratings")
+}
+
+/// A participant's structured assessment of the other participant after a completed Session.
+model Assessment {
+  id                      String          @id @db.Uuid
+  sessionId               String          @map("session_id") @db.Uuid
+  assessorUserId          String          @map("assessor_user_id") @db.Uuid
+  assessedUserId          String          @map("assessed_user_id") @db.Uuid
+  skillId                 String?         @map("skill_id") @db.Uuid
+  understandingScore      Int             @map("understanding_score")
+  practicalApplicationScore Int           @map("practical_application_score")
+  problemSolvingScore     Int             @map("problem_solving_score")
+  communicationScore      Int             @map("communication_score")
+  reliabilityScore        Int             @map("reliability_score")
+  feedback                String?         @db.VarChar(2000)
+  createdAt               DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  session                 LearningSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  assessor                User            @relation("AssessmentAssessor", fields: [assessorUserId], references: [id], onDelete: Restrict)
+  assessedUser            User            @relation("AssessmentAssessedUser", fields: [assessedUserId], references: [id], onDelete: Restrict)
+  skill                   Skill?          @relation(fields: [skillId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, assessorUserId, assessedUserId])
+  @@index([sessionId])
+  @@index([assessedUserId, createdAt])
+  @@index([skillId])
+  @@map("assessments")
+}
+
+/// A real INR payment attempt for a paid LearningSession.
+model Payment {
+  id                    String          @id @db.Uuid
+  sessionId             String          @map("session_id") @db.Uuid
+  payerUserId           String          @map("payer_user_id") @db.Uuid
+  recipientUserId       String          @map("recipient_user_id") @db.Uuid
+  amountPaise           Int             @map("amount_paise")
+  currency              String          @default("INR") @db.Char(3)
+  provider              PaymentProvider @default(RAZORPAY)
+  providerOrderId       String?         @unique @map("provider_order_id") @db.VarChar(255)
+  providerPaymentId     String?         @unique @map("provider_payment_id") @db.VarChar(255)
+  status                PaymentStatus   @default(CREATED)
+  termsVersion          String          @map("terms_version") @db.VarChar(64)
+  termsAcceptedAt       DateTime        @map("terms_accepted_at") @db.Timestamptz(6)
+  termsAcceptedBy       String          @map("terms_accepted_by") @db.Uuid
+  paidAt                DateTime?       @map("paid_at") @db.Timestamptz(6)
+  failureReason         String?         @map("failure_reason") @db.VarChar(1000)
+  refundAmountPaise     Int             @default(0) @map("refund_amount_paise")
+  refundProviderId      String?         @unique @map("refund_provider_id") @db.VarChar(255)
+  refundReason          String?         @map("refund_reason") @db.VarChar(1000)
+  refundedAt            DateTime?       @map("refunded_at") @db.Timestamptz(6)
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  session               LearningSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  payer                 User            @relation("PaymentPayer", fields: [payerUserId], references: [id], onDelete: Restrict)
+  recipient             User            @relation("PaymentRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
+  termsAcceptor         User            @relation("PaymentTermsAcceptor", fields: [termsAcceptedBy], references: [id], onDelete: Restrict)
+  transactions          Transaction[]
+
+  @@unique([sessionId, payerUserId])
+  @@index([payerUserId, createdAt])
+  @@index([recipientUserId, createdAt])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+/// Immutable financial events associated with a Payment.
+model Transaction {
+  id                String            @id @db.Uuid
+  paymentId         String            @map("payment_id") @db.Uuid
+  sessionId         String            @map("session_id") @db.Uuid
+  userId            String            @map("user_id") @db.Uuid
+  type              TransactionType
+  amountPaise       Int               @map("amount_paise")
+  currency          String            @db.Char(3)
+  status            TransactionStatus
+  providerReference String?           @map("provider_reference") @db.VarChar(255)
+  providerEventId   String?           @unique @map("provider_event_id") @db.VarChar(255)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  payment           Payment           @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  session           LearningSession   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId, createdAt])
+  @@index([userId, createdAt])
+  @@index([sessionId, createdAt])
+  @@map("transactions")
+}
+
+/// A safety report a User filed about another User.
+model Report {
+  id             String          @id @db.Uuid
+  reporterUserId String          @map("reporter_user_id") @db.Uuid
+  reportedUserId String          @map("reported_user_id") @db.Uuid
+  category       ReportCategory
+  description    String          @db.VarChar(2000)
+  status         ReportStatus    @default(OPEN)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resolvedAt     DateTime?       @map("resolved_at") @db.Timestamptz(6)
+  reporter       User            @relation("ReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
+  reportedUser   User            @relation("ReportReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  @@index([reporterUserId, createdAt])
+  @@index([reportedUserId])
+  @@index([status, createdAt])
+  @@map("reports")
+}
+
+/// An in-app notification derived from a real domain event.
+model Notification {
+  id        String           @id @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String           @db.VarChar(120)
+  message   String           @db.VarChar(500)
+  /// The domain event this notification was projected from, used for idempotency.
+  sourceEventId String        @map("source_event_id") @db.Uuid
+  readAt    DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sourceEventId])
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+/// A system-defined achievement that can be awarded to a User.
+model BadgeDefinition {
+  id          String     @id @db.Uuid
+  name        String     @db.VarChar(120)
+  description String     @db.VarChar(1000)
+  code        String     @unique @db.VarChar(64)
+  iconUrl     String?    @map("icon_url") @db.VarChar(2048)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userBadges  UserBadge[]
+
+  @@map("badge_definitions")
+}
+
+/// A User's award of one system-defined BadgeDefinition.
+model UserBadge {
+  id               String          @id @db.Uuid
+  userId           String          @map("user_id") @db.Uuid
+  badgeDefinitionId String         @map("badge_definition_id") @db.Uuid
+  awardedAt        DateTime        @default(now()) @map("awarded_at") @db.Timestamptz(6)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeDefinition  BadgeDefinition @relation(fields: [badgeDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, badgeDefinitionId])
+  @@index([userId, awardedAt])
+  @@index([badgeDefinitionId])
+  @@map("user_badges")
+}
+
+/// Server-side Google OAuth authorization data. Tokens are never returned by the API.
+model GoogleConnection {
+  id                    String    @id @db.Uuid
+  userId                String    @unique @map("user_id") @db.Uuid
+  accessToken           String    @map("access_token") @db.Text
+  refreshToken          String?   @map("refresh_token") @db.Text
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  scope                 String    @default("") @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("google_connections")
+}
+
+/// A future-dated reminder record. Delivery is intentionally not implemented.
+model SessionReminder {
+  id           String                @id @db.Uuid
+  sessionId    String                @map("session_id") @db.Uuid
+  reminderType SessionReminderType   @map("reminder_type")
+  scheduledFor DateTime              @map("scheduled_for") @db.Timestamptz(6)
+  status       SessionReminderStatus @default(PENDING)
+  sentAt       DateTime?             @map("sent_at") @db.Timestamptz(6)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  session      LearningSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, reminderType])
+  @@index([status, scheduledFor])
+  @@map("session_reminders")
+}
+
+/// Server-managed system authorization roles. Registration always creates USER;
+/// ADMIN is never accepted from a public registration request.
+model UserRole {
+  userId    String     @map("user_id") @db.Uuid
+  role      SystemRole @default(USER)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, role])
+  @@map("user_roles")
+}
+
+/// Provider identity is separate from the internal User record so OIDC can be
+/// added later without changing participant identity ownership.
+model AuthIdentity {
+  id              String   @id @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  provider        String   @db.VarChar(50)
+  providerSubject String   @map("provider_subject") @db.VarChar(255)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@index([userId])
+  @@map("auth_identities")
+}
+
+/// Password hashes are never returned by an API DTO. OIDC-only identities do
+/// not need a row in this table.
+model PasswordCredential {
+  id           String   @id @db.Uuid
+  userId       String   @unique @map("user_id") @db.Uuid
+  passwordHash String   @map("password_hash") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_credentials")
+}
+
+/// Only a hash of the opaque browser session token is persisted. The raw token
+/// exists only in the secure cookie sent to the client.
+model Session {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
 /// Minimal platform table for reliable publication of future domain events.
-/// Product entities are intentionally not part of the Foundation schema.
+/// Product entities are introduced incrementally by feature prompts.
 model OutboxEvent {
   id               String                @id @db.Uuid
   eventType        String                @map("event_type") @db.VarChar(120)

@@ -1,4 +1,4 @@
-name: Foundation CI
+name: Authentication, identity, and profile CI
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   foundation:
-    name: Foundation checks
+    name: Authentication, identity, and profile checks
     runs-on: ubuntu-latest
     env:
       NODE_VERSION: '24'
@@ -48,6 +48,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
 
       - name: Typecheck
         run: npm run typecheck
