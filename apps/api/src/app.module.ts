@@ -21,6 +21,7 @@ import { ReputationModule } from './modules/reputation/reputation.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AiAssistanceModule } from './modules/ai/ai-assistance.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { AiAssistanceModule } from './modules/ai/ai-assistance.module';
     PaymentsModule,
     NotificationsModule,
     AiAssistanceModule,
+    ReportsModule,
   ],
   providers: [AppLogger, { provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

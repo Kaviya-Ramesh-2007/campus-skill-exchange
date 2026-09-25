@@ -1229,6 +1229,65 @@ export const aiChatResponseSchema = z
   .strict();
 export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
 
+export const reportCategorySchema = z.enum([
+  'HARASSMENT',
+  'SPAM',
+  'FAKE_PROFILE',
+  'SUSPICIOUS_PAYMENT',
+  'FRAUDULENT_CERTIFICATION',
+  'INAPPROPRIATE_CONTENT',
+  'OTHER',
+]);
+export type ReportCategory = z.infer<typeof reportCategorySchema>;
+
+export const reportStatusSchema = z.enum(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED']);
+export type ReportStatus = z.infer<typeof reportStatusSchema>;
+
+export const createReportSchema = z
+  .object({
+    reportedUserId: idSchema,
+    category: reportCategorySchema,
+    description: z.string().trim().min(20).max(2000),
+  })
+  .strict();
+export type CreateReportRequest = z.infer<typeof createReportSchema>;
+
+export const updateReportStatusSchema = z.object({ status: reportStatusSchema }).strict();
+export type UpdateReportStatusRequest = z.infer<typeof updateReportStatusSchema>;
+
+export const reportSchema = z
+  .object({
+    id: idSchema,
+    reporterUserId: idSchema,
+    reportedUserId: idSchema,
+    category: reportCategorySchema,
+    description: z.string(),
+    status: reportStatusSchema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+    resolvedAt: timestampSchema.nullable(),
+  })
+  .strict();
+export type Report = z.infer<typeof reportSchema>;
+
+const reportEventPayloadSchema = z
+  .object({
+    reportId: idSchema,
+    reporterUserId: idSchema,
+    reportedUserId: idSchema,
+    category: reportCategorySchema,
+    status: reportStatusSchema,
+  })
+  .strict();
+export type ReportEventPayload = z.infer<typeof reportEventPayloadSchema>;
+
+export const reportCreatedEventDefinition = defineEvent({
+  name: 'REPORT_CREATED',
+  version: 1,
+  ownerModule: 'reports',
+  payloadSchema: reportEventPayloadSchema,
+});
+
 export const notificationTypeSchema = z.enum([
   'REQUEST_SENT',
   'REQUEST_ACCEPTED',
