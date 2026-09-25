@@ -53,6 +53,36 @@ const environmentSchema = z
         message: 'SameSite=None is only valid in production where Secure cookies are enabled.',
       });
     }
+    // Production must never silently fall back to a development default.
+    if (config.NODE_ENV === 'production') {
+      const localOrigins = config.CORS_ORIGINS.split(',')
+        .map((origin) => origin.trim().toLowerCase())
+        .filter((origin) => /^(https?:\/\/)?(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(origin));
+      if (localOrigins.length > 0) {
+        context.addIssue({
+          code: 'custom',
+          path: ['CORS_ORIGINS'],
+          message: `CORS_ORIGINS must not contain local origins in production: ${localOrigins.join(', ')}.`,
+        });
+      }
+      if (
+        /^(https?:\/\/)?(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(config.GOOGLE_REDIRECT_URI)
+      ) {
+        context.addIssue({
+          code: 'custom',
+          path: ['GOOGLE_REDIRECT_URI'],
+          message: 'GOOGLE_REDIRECT_URI must be a deployed HTTPS URL in production.',
+        });
+      }
+      if (config.AI_PROVIDER === 'openai' && config.AI_API_KEY.length === 0) {
+        context.addIssue({
+          code: 'custom',
+          path: ['AI_API_KEY'],
+          message:
+            'AI_API_KEY is required when AI_PROVIDER is "openai". Use AI_PROVIDER=disabled to run without AI.',
+        });
+      }
+    }
   });
 
 export type ApiEnvironment = z.infer<typeof environmentSchema>;
