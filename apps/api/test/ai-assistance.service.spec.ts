@@ -27,6 +27,14 @@ class FakeProvider implements AiProvider {
     if (this.fail) throw new AiProviderError('provider down');
     return { content: 'Suggested topics from the supplied context.', model: 'test-model' };
   }
+
+  lastChat: { message: string; history: unknown[] } | null = null;
+
+  async chat(input: { message: string; history: unknown[] }) {
+    this.lastChat = input;
+    if (this.fail) throw new AiProviderError('provider down');
+    return { content: 'Here is an answer from the provider.', model: 'test-model' };
+  }
 }
 
 function setup() {
@@ -82,6 +90,39 @@ describe('AiAssistanceService', () => {
     await expect(
       service.assist(user, { action: 'draft_message', context: 'Ask about a session.' }),
     ).rejects.toBeInstanceOf(ApiException);
+  });
+
+  it('returns a real provider answer for a chat message', async () => {
+    const { service, provider } = setup();
+    const result = await service.chat(user, { message: 'How do I prepare for a session?' });
+    expect(result).toMatchObject({
+      content: 'Here is an answer from the provider.',
+      model: 'test-model',
+      unavailable: false,
+    });
+    expect(provider.lastChat).toMatchObject({ message: 'How do I prepare for a session?' });
+  });
+
+  it('returns the unavailable state for chat when no provider is configured', async () => {
+    const { service, provider } = setup();
+    provider.configured = false;
+    const result = await service.chat(user, { message: 'Hello' });
+    expect(result).toMatchObject({ unavailable: true, content: '' });
+    expect(provider.lastChat).toBeNull();
+  });
+
+  it('rejects an empty or oversized chat message', async () => {
+    const { service } = setup();
+    await expect(service.chat(user, { message: '   ' })).rejects.toBeInstanceOf(ApiException);
+    await expect(service.chat(user, { message: 'x'.repeat(2001) })).rejects.toBeInstanceOf(
+      ApiException,
+    );
+  });
+
+  it('never returns fake chat text when the provider fails', async () => {
+    const { service, provider } = setup();
+    provider.fail = true;
+    await expect(service.chat(user, { message: 'Hello' })).rejects.toBeInstanceOf(ApiException);
   });
 
   it('rejects an unsupported action or empty context', async () => {

@@ -2,12 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { z } from 'zod';
 import {
   aiAssistSchema,
+  aiChatSchema,
   type AiAssistRequest,
   type AiAssistResponse,
+  type AiChatResponse,
   type AuthUser,
 } from '@campus-skill-exchange/contracts';
 import { ApiException } from '../../common/errors/api-exception';
-import { AI_PROVIDER, AiProviderError, type AiProvider } from './ai.provider';
+import { AI_PROVIDER, AiProviderError, type AiChatMessage, type AiProvider } from './ai.provider';
 
 @Injectable()
 export class AiAssistanceService {
@@ -45,6 +47,34 @@ export class AiAssistanceService {
           503,
           'DEPENDENCY_UNAVAILABLE',
           'AI assistance is unavailable right now.',
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Chat shares the provider and credentials used by `assist`. Conversation
+   * state lives only in the caller's request: nothing is persisted server-side.
+   */
+  async chat(
+    actor: AuthUser,
+    input: unknown,
+    history: AiChatMessage[] = [],
+  ): Promise<AiChatResponse> {
+    const data = this.parse(aiChatSchema, input);
+    if (!this.provider.isConfigured()) {
+      return { content: '', model: this.provider.name, unavailable: true };
+    }
+    try {
+      const result = await this.provider.chat({ message: data.message, history });
+      return { content: result.content, model: result.model, unavailable: false };
+    } catch (error) {
+      if (error instanceof AiProviderError) {
+        throw new ApiException(
+          503,
+          'DEPENDENCY_UNAVAILABLE',
+          'The assistant is unavailable right now.',
         );
       }
       throw error;
