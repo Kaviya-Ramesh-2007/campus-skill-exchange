@@ -494,6 +494,78 @@ a {
   color: var(--cse-color-muted);
   line-height: 1.6;
 }
+.badges-page {
+  max-width: 64rem;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+.section-heading h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.badge-card {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+  height: 100%;
+}
+.badge-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+.badge-card__icon {
+  flex: 0 0 auto;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid var(--cse-color-border);
+  border-radius: var(--cse-radius-md);
+  background: var(--cse-color-primary-soft);
+  object-fit: contain;
+  padding: 0.35rem;
+}
+.badge-card__icon--fallback {
+  display: grid;
+  place-items: center;
+  color: var(--cse-color-primary);
+  font-size: 1.5rem;
+}
+.badge-card__heading {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.badge-card__heading h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1.125rem;
+}
+.badge-card__description,
+.badge-card__awarded {
+  margin: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.badge-card__description {
+  color: var(--cse-color-ink);
+}
+.badge-card__awarded {
+  color: var(--cse-color-muted);
+  font-size: 0.875rem;
+}
 .discover-page {
   max-width: 64rem;
 }
@@ -578,7 +650,8 @@ a {
   .profile-form__grid,
   .portfolio-form__row,
   .discover-form,
-  .discover-results {
+  .discover-results,
+  .badge-grid {
     grid-template-columns: 1fr;
   }
   .discover-pagination {
