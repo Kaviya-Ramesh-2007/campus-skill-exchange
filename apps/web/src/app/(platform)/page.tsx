@@ -19,13 +19,13 @@ export default function FoundationPage() {
           Create account
         </Link>
       </div>
-      <Alert severity="info" title="Profile foundation">
-        Profiles are presentation data for the existing User identity. No external identity provider
-        or file-storage provider is connected yet.
+      <Alert severity="info" title="Built for verified campus exchange">
+        Every participant is a single User account. Verified certifications, completed sessions and
+        real feedback build a reputation you can take with you.
       </Alert>
       <p className="foundation-note">
-        The application shell, shared contracts, identity/profile migrations, server-side sessions,
-        and design-system primitives are intentionally separated from future product behavior.
+        Sessions, payments, ratings, assessments, badges and safety reports are all recorded against
+        your verified account.
       </p>
     </div>
   );

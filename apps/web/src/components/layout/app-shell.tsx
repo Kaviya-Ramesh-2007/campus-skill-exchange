@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Badge } from '@campus-skill-exchange/ui';
 import { AuthNavigation } from '../../features/auth/auth-navigation';
+import { PrimaryNavigation } from '../../features/navigation/primary-navigation';
 import { NotificationBell } from '../../features/notifications/notification-bell';
-import { AdminNavigationLink } from '../../features/admin/admin-navigation-link';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -22,30 +21,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               <small>Learn. Teach. Exchange. Grow.</small>
             </span>
           </Link>
-          <nav aria-label="Primary navigation">
-            <Link href="/">Home</Link>
-            <Link href="/dashboard">Dashboard</Link>
-            <Link href="/discover">Discover</Link>
-            <Link href="/profile">Profile</Link>
-            <Link href="/badges">Badges</Link>
-            <Link href="/payments">Payments</Link>
-            <Link href="/reports">Safety</Link>
-            <Link href="/ai">AI assistance</Link>
-            <Link href="/chatbot">Chatbot</Link>
-            <AdminNavigationLink />
-            <Link href="/portfolio">Portfolio</Link>
-            <Link href="/health">Infrastructure health</Link>
-          </nav>
+          <PrimaryNavigation />
           <AuthNavigation />
           <NotificationBell />
-          <Badge tone="info">Profile foundation</Badge>
         </div>
       </header>
       <main id="main-content" className="site-main">
         {children}
       </main>
       <footer className="site-footer">
-        <p>Campus Skill Exchange professional profile foundation</p>
+        <p>Campus Skill Exchange — learn, teach and exchange skills with your campus peers.</p>
       </footer>
     </div>
   );
