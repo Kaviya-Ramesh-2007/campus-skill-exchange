@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Badge } from '@campus-skill-exchange/ui';
 import { AuthNavigation } from '../../features/auth/auth-navigation';
+import { NotificationBell } from '../../features/notifications/notification-bell';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -30,6 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/health">Infrastructure health</Link>
           </nav>
           <AuthNavigation />
+          <NotificationBell />
           <Badge tone="info">Profile foundation</Badge>
         </div>
       </header>

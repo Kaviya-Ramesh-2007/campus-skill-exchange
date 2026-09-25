@@ -1178,7 +1178,47 @@ export const refundCompletedEventDefinition = defineEvent({
   payloadSchema: refundEventPayloadSchema,
 });
 
+export const notificationTypeSchema = z.enum([
+  'REQUEST_SENT',
+  'REQUEST_ACCEPTED',
+  'REQUEST_DECLINED',
+  'SESSION_SCHEDULED',
+  'SESSION_UPDATED',
+  'SESSION_CANCELLED',
+  'PAYMENT_CAPTURED',
+  'PAYMENT_FAILED',
+  'REFUND_REQUESTED',
+  'REFUND_COMPLETED',
+  'BADGE_EARNED',
+]);
+export type NotificationType = z.infer<typeof notificationTypeSchema>;
+
+export const notificationSchema = z
+  .object({
+    id: idSchema,
+    userId: idSchema,
+    type: notificationTypeSchema,
+    title: z.string(),
+    message: z.string(),
+    readAt: timestampSchema.nullable(),
+    createdAt: timestampSchema,
+  })
+  .strict();
+export type Notification = z.infer<typeof notificationSchema>;
+
+export const notificationQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+  })
+  .strict();
+export type NotificationQuery = z.infer<typeof notificationQuerySchema>;
+
+export const unreadCountSchema = z.object({ unreadCount: z.number().int().nonnegative() }).strict();
+export type UnreadCount = z.infer<typeof unreadCountSchema>;
+
 export const googleConnectionStatusSchema = z
+
   .object({
     connected: z.boolean(),
     scopes: z.array(z.string()).default([]),
