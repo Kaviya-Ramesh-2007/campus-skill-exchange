@@ -488,6 +488,48 @@ export type DiscoveryUser = z.infer<typeof discoveryUserSchema>;
 
 export const discoveryUsersResponseSchema = createPaginatedResponseSchema(discoveryUserSchema);
 
+export const matchingQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+export type MatchingQuery = z.infer<typeof matchingQuerySchema>;
+
+const matchingSkillReferenceSchema = z.object({ id: idSchema, name: z.string() }).strict();
+export const matchingUserSchema = z
+  .object({
+    userId: idSchema,
+    displayName: z.string(),
+    relevantSkills: z.array(matchingSkillReferenceSchema),
+    relevantLearningGoals: z.array(
+      z.object({ id: idSchema, skill: matchingSkillReferenceSchema }).strict(),
+    ),
+    matchScore: z.number().int().nonnegative(),
+    reasons: z.array(z.string()),
+    mutual: z.boolean(),
+  })
+  .strict();
+export type MatchingUser = z.infer<typeof matchingUserSchema>;
+export const matchingUsersResponseSchema = createPaginatedResponseSchema(matchingUserSchema);
+
+export const exchangePairSchema = z
+  .object({
+    skillYouCanTeach: matchingSkillReferenceSchema,
+    skillTheyCanTeach: matchingSkillReferenceSchema,
+  })
+  .strict();
+export const mutualExchangeSchema = z
+  .object({
+    partnerUserId: idSchema,
+    displayName: z.string(),
+    exchangePairs: z.array(exchangePairSchema),
+    explanation: z.string(),
+  })
+  .strict();
+export type MutualExchange = z.infer<typeof mutualExchangeSchema>;
+export const mutualExchangesResponseSchema = createPaginatedResponseSchema(mutualExchangeSchema);
+
 export const eventTypeSchema = z.string().regex(/^[A-Z][A-Z0-9_]*$/, {
   message: 'Event types must use UPPER_SNAKE_CASE.',
 });
