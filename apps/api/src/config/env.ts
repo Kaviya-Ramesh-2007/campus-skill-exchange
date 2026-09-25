@@ -30,6 +30,17 @@ const environmentSchema = z
       .string()
       .url()
       .default('http://localhost:3001/api/v1/integrations/google/callback'),
+    // AI assistance. The key is server-only and is never sent to the browser.
+    AI_PROVIDER: z.enum(['openai', 'disabled']).default('disabled'),
+    AI_API_KEY: z.string().default(''),
+    AI_MODEL: z.string().trim().min(1).default('gpt-4o-mini'),
+    AI_API_BASE_URL: z
+      .string()
+      .url()
+      .default('https://api.openai.com/v1')
+      .refine((value: string) => value.startsWith('https://'), {
+        message: 'AI_API_BASE_URL must use HTTPS.',
+      }),
     RAZORPAY_KEY_ID: z.string().default(''),
     RAZORPAY_KEY_SECRET: z.string().default(''),
     RAZORPAY_WEBHOOK_SECRET: z.string().default(''),
