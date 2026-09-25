@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Badge } from '@campus-skill-exchange/ui';
 import { AuthNavigation } from '../../features/auth/auth-navigation';
 import { NotificationBell } from '../../features/notifications/notification-bell';
+import { AdminNavigationLink } from '../../features/admin/admin-navigation-link';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -30,6 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/payments">Payments</Link>
             <Link href="/ai">AI assistance</Link>
             <Link href="/chatbot">Chatbot</Link>
+            <AdminNavigationLink />
             <Link href="/portfolio">Portfolio</Link>
             <Link href="/health">Infrastructure health</Link>
           </nav>
