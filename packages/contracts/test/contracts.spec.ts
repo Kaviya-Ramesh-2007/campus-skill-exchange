@@ -16,6 +16,9 @@ import {
   createProjectRequestSchema,
   discoveryUserQuerySchema,
   discoveryUserSchema,
+  matchingQuerySchema,
+  matchingUserSchema,
+  mutualExchangeSchema,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -178,6 +181,36 @@ describe('shared contracts', () => {
         email: 'must-not@example.test',
       }).success,
     ).toBe(false);
+  });
+
+  it('validates matching queries and keeps exchange responses explicit', () => {
+    expect(matchingQuerySchema.parse({})).toEqual({ page: 1, limit: 20 });
+    expect(matchingQuerySchema.safeParse({ page: 1, limit: 101 }).success).toBe(false);
+    expect(matchingQuerySchema.safeParse({ page: 1, limit: 20, unexpected: true }).success).toBe(
+      false,
+    );
+
+    const skill = { id: '00000000-0000-4000-8000-000000000003', name: 'AWS' };
+    expect(
+      matchingUserSchema.safeParse({
+        userId: '00000000-0000-4000-8000-000000000002',
+        displayName: 'Candidate',
+        relevantSkills: [skill],
+        relevantLearningGoals: [],
+        matchScore: 2,
+        reasons: ['Can teach AWS, which you want to learn.'],
+        mutual: false,
+        email: 'must-not@example.test',
+      }).success,
+    ).toBe(false);
+    expect(
+      mutualExchangeSchema.safeParse({
+        partnerUserId: '00000000-0000-4000-8000-000000000002',
+        displayName: 'Candidate',
+        exchangePairs: [{ skillYouCanTeach: skill, skillTheyCanTeach: { ...skill, name: 'C++' } }],
+        explanation: 'Both users can teach a skill the other wants to learn.',
+      }).success,
+    ).toBe(true);
   });
 
   it('keeps the profile response free of authentication fields', () => {
