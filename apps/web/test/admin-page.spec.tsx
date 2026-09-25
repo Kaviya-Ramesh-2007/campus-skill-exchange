@@ -7,6 +7,7 @@ import type { AuthUser } from '@campus-skill-exchange/contracts';
 const mocks = vi.hoisted(() => ({
   getLiveness: vi.fn(),
   getReadiness: vi.fn(),
+  getAnalyticsOverview: vi.fn(),
   user: null as AuthUser | null,
   authLoading: false,
 }));
@@ -17,6 +18,7 @@ vi.mock('../src/features/auth/auth-provider', () => ({
 vi.mock('../src/features/admin/admin-api', () => ({
   getLiveness: mocks.getLiveness,
   getReadiness: mocks.getReadiness,
+  getAnalyticsOverview: mocks.getAnalyticsOverview,
 }));
 
 const baseUser = {
@@ -57,6 +59,16 @@ describe('AdminPage', () => {
     mocks.authLoading = false;
     mocks.getLiveness.mockReset();
     mocks.getReadiness.mockReset();
+    mocks.getAnalyticsOverview.mockReset().mockResolvedValue({
+      totalUsers: 12,
+      activeUsers: 10,
+      totalSkills: 34,
+      totalSessions: 7,
+      completedSessions: 3,
+      paidSessions: 2,
+      totalReports: 4,
+      openReports: 1,
+    });
     mocks.user = adminUser;
     setupHealth();
   });
@@ -94,6 +106,31 @@ describe('AdminPage', () => {
     // A finished area is the only real link, and there is no invented data.
     expect(screen.getByRole('link', { name: /Users/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Analytics/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the real Platform Overview counters for an ADMIN', async () => {
+    render(<AdminPage />);
+    expect(await screen.findByRole('heading', { name: 'Platform Overview' })).toBeInTheDocument();
+    expect(await screen.findByText('Members')).toBeInTheDocument();
+    expect(await screen.findByText('34')).toBeInTheDocument();
+    expect(mocks.getAnalyticsOverview).toHaveBeenCalled();
+  });
+
+  it('never requests analytics for a normal USER', async () => {
+    mocks.user = baseUser;
+    render(<AdminPage />);
+    expect(await screen.findByText('Administrator access required')).toBeInTheDocument();
+    expect(mocks.getAnalyticsOverview).not.toHaveBeenCalled();
+    expect(screen.queryByText('Platform Overview')).not.toBeInTheDocument();
+  });
+
+  it('shows an error state instead of fake numbers when analytics fail', async () => {
+    mocks.getAnalyticsOverview.mockRejectedValue(new Error('boom'));
+    render(<AdminPage />);
+    expect(
+      await screen.findByText('Platform analytics are unavailable right now.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('34')).not.toBeInTheDocument();
   });
 
   it('reports real system status from the health endpoints', async () => {

@@ -1,4 +1,10 @@
+import type { AnalyticsOverview } from '@campus-skill-exchange/contracts';
 import { apiRequest } from '../../services/api-client';
+
+/** ADMIN-only. Real PostgreSQL aggregates; the API refuses non-admins. */
+export function getAnalyticsOverview(): Promise<AnalyticsOverview> {
+  return apiRequest<AnalyticsOverview>('/analytics/overview');
+}
 
 /** Real infrastructure data from the existing public health endpoints. */
 export interface LivenessReport {

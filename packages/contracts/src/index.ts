@@ -1229,6 +1229,20 @@ export const aiChatResponseSchema = z
   .strict();
 export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
 
+export const analyticsOverviewSchema = z
+  .object({
+    totalUsers: z.number().int().nonnegative(),
+    activeUsers: z.number().int().nonnegative(),
+    totalSkills: z.number().int().nonnegative(),
+    totalSessions: z.number().int().nonnegative(),
+    completedSessions: z.number().int().nonnegative(),
+    paidSessions: z.number().int().nonnegative(),
+    totalReports: z.number().int().nonnegative(),
+    openReports: z.number().int().nonnegative(),
+  })
+  .strict();
+export type AnalyticsOverview = z.infer<typeof analyticsOverviewSchema>;
+
 export const reportCategorySchema = z.enum([
   'HARASSMENT',
   'SPAM',

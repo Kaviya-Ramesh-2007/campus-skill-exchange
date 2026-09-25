@@ -790,6 +790,45 @@ a {
   text-align: left;
 }
 
+/* Admin metrics */
+.admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cse-space-3);
+  margin: 0 0 var(--cse-space-6);
+  padding: 0;
+  list-style: none;
+}
+.admin-metric {
+  display: grid;
+  gap: var(--cse-space-1);
+  padding: var(--cse-space-4);
+  border: 1px solid var(--cse-color-border);
+  border-radius: var(--cse-radius-md);
+  background: var(--cse-color-surface);
+  box-shadow: var(--cse-shadow-sm);
+}
+.admin-metric__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.admin-metric__label {
+  color: var(--cse-color-muted);
+  font-size: 0.85rem;
+}
+@media (max-width: 900px) {
+  .admin-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .admin-metric__value {
+    font-size: 1.5rem;
+  }
+}
+
 /* Reports & Safety */
 .report-form {
   display: grid;
