@@ -22,6 +22,13 @@ enum ProfileVisibility {
   PRIVATE
 }
 
+enum SkillProficiency {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
 enum OutboxProcessingStatus {
   PENDING
   PROCESSING
@@ -44,6 +51,7 @@ model User {
   passwordCredential PasswordCredential?
   sessions           Session[]
   profile            Profile?
+  userSkills         UserSkill[]
 
   @@unique([email])
   @@index([accountStatus])
@@ -72,6 +80,42 @@ model Profile {
 
   @@index([visibility])
   @@map("profiles")
+}
+
+/// A canonical catalog entry. The normalized name is the duplicate-prevention
+/// boundary; display casing is retained separately for presentation.
+model Skill {
+  id             String      @id @db.Uuid
+  name           String      @db.VarChar(120)
+  normalizedName String      @unique @map("normalized_name") @db.VarChar(120)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userSkills     UserSkill[]
+
+  @@index([name])
+  @@map("skills")
+}
+
+/// A contextual capability association for one User and one catalog Skill.
+/// It does not define a permanent participant identity or system role.
+model UserSkill {
+  id          String           @id @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  skillId     String           @map("skill_id") @db.Uuid
+  proficiency SkillProficiency @default(BEGINNER)
+  canTeach    Boolean          @default(false) @map("can_teach")
+  description String?          @db.VarChar(1000)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill       Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@index([userId])
+  @@index([skillId])
+  @@index([userId, canTeach])
+  @@index([skillId, canTeach])
+  @@map("user_skills")
 }
 
 /// Server-managed system authorization roles. Registration always creates USER;
