@@ -21,18 +21,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
           </Link>
           <nav aria-label="Primary navigation">
-            <Link href="/">Foundation</Link>
+            <Link href="/">Home</Link>
+            <Link href="/profile">Profile</Link>
             <Link href="/health">Infrastructure health</Link>
           </nav>
           <AuthNavigation />
-          <Badge tone="info">Identity foundation</Badge>
+          <Badge tone="info">Profile foundation</Badge>
         </div>
       </header>
       <main id="main-content" className="site-main">
         {children}
       </main>
       <footer className="site-footer">
-        <p>Campus Skill Exchange identity foundation</p>
+        <p>Campus Skill Exchange professional profile foundation</p>
       </footer>
     </div>
   );

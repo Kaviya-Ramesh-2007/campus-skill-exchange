@@ -56,6 +56,9 @@ export default function AccountPage() {
           </div>
         </div>
         <div className="account-actions">
+          <Link className="cse-button cse-button--secondary cse-button--md" href="/profile">
+            View profile
+          </Link>
           <Button variant="secondary" onClick={() => void logout()}>
             Sign out
           </Button>

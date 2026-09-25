@@ -2,9 +2,9 @@
 
 **Learn. Teach. Exchange. Grow.**
 
-Campus Skill Exchange is a planned peer-to-peer skill exchange platform for students and users. The repository contains the Foundation plus the first authentication/identity module: application shells, infrastructure contracts, database migrations, a minimal outbox, accessible UI primitives, secure local auth, tests, CI, and documentation.
+Campus Skill Exchange is a planned peer-to-peer skill exchange platform for students and users. The repository contains the Foundation, authentication/identity module, and professional User Profile module: application shells, infrastructure contracts, database migrations, a transactional outbox, accessible UI primitives, secure local auth, profile views/editing, tests, CI, and documentation.
 
-No profile, skill, matching, exchange, payment, notification, or other product feature is implemented yet. No external identity provider is connected.
+Skills, matching, exchanges, payments, notifications, and other product modules are not implemented yet. No external identity provider or file-storage provider is connected.
 
 ## Architecture summary
 
@@ -21,8 +21,8 @@ No profile, skill, matching, exchange, payment, notification, or other product f
 
 ```text
 apps/
-  api/       NestJS API and auth module
-  web/       Next.js web and auth routes
+  api/       NestJS API, auth, and users/profile modules
+  web/       Next.js web, auth, and profile routes
 packages/
   config/    Shared configuration primitives
   contracts/ Shared schemas and transport contracts
@@ -73,7 +73,7 @@ npm run db:deploy
 
 Use `npm run db:migrate` only for reviewed development migrations. Use `npm run db:reset` only against a disposable development database.
 
-## Health and authentication endpoints
+## Health, authentication, and profile endpoints
 
 - `GET /api/v1/health` checks API process liveness.
 - `GET /api/v1/ready` checks PostgreSQL readiness.
@@ -81,6 +81,11 @@ Use `npm run db:migrate` only for reviewed development migrations. Use `npm run 
 - `POST /api/v1/auth/login` authenticates an account.
 - `POST /api/v1/auth/logout` revokes the current session.
 - `GET /api/v1/auth/me` returns the current safe identity.
+- `GET /api/v1/profile` returns the current user's profile.
+- `POST /api/v1/profile` initializes the current user's profile.
+- `PATCH /api/v1/profile` updates the current user's profile.
+- `GET /api/v1/users/:userId/profile` returns another user's public profile.
+- `PATCH /api/v1/users/:userId/profile` supports owner-or-ADMIN profile maintenance.
 - `GET /api/docs` exposes the synchronized API documentation.
 
 ## Documentation
@@ -101,4 +106,4 @@ Use `npm run db:migrate` only for reviewed development migrations. Use `npm run 
 
 ## Current boundary
 
-The following are intentionally absent: profiles, skills, goals, availability, certifications, projects, discovery, matching, exchanges, requests, product sessions, meetings, ratings, assessments, badges, reputation, payments, transactions, notifications, dashboards, admin workflows, reports, analytics, and AI.
+The following are intentionally absent: skills, goals, availability, certifications, projects, discovery, matching, exchanges, requests, product sessions, meetings, ratings, assessments, badges, reputation, payments, transactions, notifications, dashboards, admin workflows, reports, analytics, and AI.

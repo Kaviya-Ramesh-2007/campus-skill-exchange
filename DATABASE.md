@@ -14,7 +14,11 @@ Prompt 1 adds the minimum identity/session tables:
 - `password_credentials`
 - `sessions`
 
-The Prisma schema is at `database/prisma/schema.prisma`. Foundation and identity migrations are committed under `database/prisma/migrations/`; the Prompt 1 migration is `20260925000000_auth_identity_foundation/migration.sql`.
+Prompt 2 adds the profile foundation table:
+
+- `profiles`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, and profile migrations are committed under `database/prisma/migrations/`; the profile migration is `20260926000000_user_profile_foundation/migration.sql`.
 
 No future product tables such as skills, learning goals, certifications, projects, sessions as a product workflow, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
 
@@ -33,6 +37,12 @@ Never commit real credentials.
 Prompt 1 uses normalized lowercase email storage with a database check constraint and unique index. `UserRole` stores server-managed `USER` and `ADMIN` permissions. `AuthIdentity` separates provider identity from the internal user, and `PasswordCredential` stores only Argon2id hashes. `Session` stores only a SHA-256 hash of an opaque cookie token, with expiration and revocation timestamps.
 
 Registration never accepts a role from the request. The server creates the `USER` role in the same transaction as the local identity and credential.
+
+## Profile table
+
+`profiles` is a one-to-one presentation record for an existing `users` row. The `user_id` foreign key is unique and cascades only when the owning identity is removed. `public_display_name` is an optional public presentation name; when it is absent, the API uses the existing `User.displayName`. Authentication fields, sessions, account status, and system roles are not stored in `profiles`.
+
+Profile URLs are stored as bounded `VARCHAR(2048)` references and are validated as HTTP/HTTPS URLs by the API. `interests` is a bounded PostgreSQL text array, normalized and de-duplicated by the application. `visibility` controls whether the public profile route exposes the record. A successful profile update and its `PROFILE_UPDATED` outbox row are committed in one transaction.
 
 ## Prisma workflow
 
@@ -83,7 +93,7 @@ The `outbox_events` table is a minimal durable hand-off for future domain events
 3. Commit both atomically.
 4. Allow a future dispatcher/consumer to process the event idempotently.
 
-The Foundation does not implement event dispatch, retries, notifications, badges, analytics, or business event producers.
+The Foundation does not implement event dispatch, retries, notifications, badges, analytics, or business event producers. Prompt 2 adds a versioned `PROFILE_UPDATED` producer backed by the same transactional outbox, but it does not implement a dispatcher or consumer.
 
 ## Future module ownership
 

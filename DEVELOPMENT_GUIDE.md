@@ -82,6 +82,12 @@ AUTH_SESSION_SAME_SITE=lax
 
 The API must be reached through the same-origin web proxy for browser authentication. Passwords are never returned or logged. OIDC configuration remains deferred; do not add provider secrets or claim a provider is connected without a later implementation.
 
+## Profile development
+
+Prompt 2 adds a one-to-one profile for the existing authenticated `User`. Initialize it through `POST /api/v1/profile`; the current-user view and edit routes are `/profile` and `/profile/edit`. The public route is `/users/[userId]/profile` in the web application and `/api/v1/users/:userId/profile` in the API.
+
+Profile image references are validated as HTTP/HTTPS URLs. No upload endpoint, filesystem path, cloud credential, or fake storage success is part of this prompt. A profile update emits `PROFILE_UPDATED` through the transactional outbox; no dispatcher or notification consumer is implemented.
+
 ## Quality commands
 
 ```bash

@@ -48,9 +48,9 @@ Every participant is a `User`. The system has only `USER` and `ADMIN` authorizat
 
 ## Event foundation
 
-A future business transaction will write its domain change and an `outbox_events` record in one PostgreSQL transaction. A future dispatcher will publish the event to notification, analytics, badge, reputation, and audit consumers. Consumers must be idempotent.
+A domain transaction writes its domain change and an `outbox_events` record in one PostgreSQL transaction. Prompt 2 uses this boundary for the versioned `PROFILE_UPDATED` event. A future dispatcher will publish events to notification, analytics, badge, reputation, and audit consumers. Consumers must be idempotent.
 
-The Foundation does not implement a dispatcher, queue, or business event catalog.
+The Foundation and profile prompt do not implement a dispatcher, queue, notifications, or downstream consumers.
 
 ## External integrations
 
@@ -59,6 +59,10 @@ OIDC, storage, email, meeting, payment, and AI providers are represented by inte
 ## Authentication boundary
 
 The auth module owns the internal `User`, local `AuthIdentity`, `PasswordCredential`, and revocable `Session` records. The browser receives an opaque HttpOnly cookie containing a random token; PostgreSQL stores only its hash. Future OIDC adapters map provider subjects to `AuthIdentity` without changing the internal User domain.
+
+## Profile boundary
+
+The `users` module owns the one-to-one `Profile` record and its public visibility policy. It depends on the existing `User` identity and the platform outbox, but does not access authentication repositories or duplicate credentials, sessions, account status, or system roles. A profile may use the existing account display name as a fallback while storing an independently editable public presentation name.
 
 ## Deployment direction
 

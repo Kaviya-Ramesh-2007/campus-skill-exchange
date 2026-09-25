@@ -29,6 +29,9 @@ export function AuthNavigation() {
       <Link className="auth-nav-user" href="/account">
         {user.displayName}
       </Link>
+      <Link className="auth-nav-profile-link" href="/profile">
+        Profile
+      </Link>
       <Badge tone="info">{user.roles.includes('ADMIN') ? 'ADMIN' : 'USER'}</Badge>
       <Button
         variant="secondary"

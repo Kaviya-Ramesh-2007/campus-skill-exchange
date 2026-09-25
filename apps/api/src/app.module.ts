@@ -7,6 +7,7 @@ import { AppLogger } from './platform/logging/app-logger';
 import { DatabaseModule } from './platform/database/database.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AuthModule } from './modules/auth/auth.module';
     DatabaseModule,
     HealthModule,
     AuthModule,
+    UsersModule,
   ],
   providers: [AppLogger, { provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })
