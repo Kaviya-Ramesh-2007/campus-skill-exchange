@@ -18,9 +18,14 @@ Prompt 2 adds the profile foundation table:
 
 - `profiles`
 
-The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, and profile migrations are committed under `database/prisma/migrations/`; the profile migration is `20260926000000_user_profile_foundation/migration.sql`.
+Prompt 3 adds the skill catalog and user-skill association tables:
 
-No future product tables such as skills, learning goals, certifications, projects, sessions as a product workflow, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
+- `skills`
+- `user_skills`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, and skill migrations are committed under `database/prisma/migrations/`; the skill migration is `20260927000000_skill_user_skill_foundation/migration.sql`.
+
+No later product tables such as learning goals, certifications, projects, sessions as a product workflow, ratings, assessments, badges, payments, notifications, or reports exist yet. They must be introduced incrementally by their owning feature prompts.
 
 ## Configuration
 
