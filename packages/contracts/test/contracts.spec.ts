@@ -47,6 +47,14 @@ import {
   assessmentSchema,
   assessmentSubmittedEventDefinition,
   reputationSummarySchema,
+  createPaymentOrderSchema,
+  verifyPaymentSchema,
+  refundPaymentSchema,
+  paymentSchema,
+  paymentCreatedEventDefinition,
+  paymentCapturedEventDefinition,
+  refundRequestedEventDefinition,
+  refundCompletedEventDefinition,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -525,6 +533,77 @@ describe('shared contracts', () => {
         badgeCount: 3,
       }).success,
     ).toBe(true);
+  });
+
+  it('validates INR payment commands, safe records, and event definitions', () => {
+    const timestamp = '2026-10-01T12:00:00.000Z';
+    const sessionId = '00000000-0000-4000-8000-000000000001';
+    const payerUserId = '00000000-0000-4000-8000-000000000002';
+    const recipientUserId = '00000000-0000-4000-8000-000000000003';
+    const paymentId = '00000000-0000-4000-8000-000000000004';
+    const transactionId = '00000000-0000-4000-8000-000000000005';
+    const order = { sessionId, termsVersion: '2026-10-01', termsAccepted: true as const };
+    expect(createPaymentOrderSchema.safeParse(order).success).toBe(true);
+    expect(createPaymentOrderSchema.safeParse({ ...order, amountPaise: 1 }).success).toBe(false);
+    expect(
+      verifyPaymentSchema.safeParse({
+        paymentId,
+        providerOrderId: 'order_test',
+        providerPaymentId: 'pay_test',
+        signature: 'signature',
+      }).success,
+    ).toBe(true);
+    expect(refundPaymentSchema.safeParse({ amountPaise: 100, reason: 'Cancelled' }).success).toBe(
+      true,
+    );
+    expect(
+      paymentSchema.safeParse({
+        id: paymentId,
+        sessionId,
+        payerUserId,
+        recipientUserId,
+        amountPaise: 10000,
+        currency: 'INR',
+        provider: 'RAZORPAY',
+        status: 'CAPTURED',
+        providerOrderId: 'order_test',
+        providerPaymentId: 'pay_test',
+        termsVersion: '2026-10-01',
+        termsAcceptedAt: timestamp,
+        termsAcceptedBy: payerUserId,
+        paidAt: timestamp,
+        failureReason: null,
+        refundAmountPaise: 0,
+        refundProviderId: null,
+        refundReason: null,
+        refundedAt: null,
+        transactions: [],
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        secret: 'must-not-be-returned',
+      }).success,
+    ).toBe(false);
+    for (const definition of [
+      paymentCreatedEventDefinition,
+      paymentCapturedEventDefinition,
+      refundRequestedEventDefinition,
+      refundCompletedEventDefinition,
+    ]) {
+      const payload = definition.payloadSchema.safeParse({
+        paymentId,
+        sessionId,
+        payerUserId,
+        recipientUserId,
+        amountPaise: 10000,
+        currency: 'INR',
+        status: 'CAPTURED',
+        ...(definition === refundRequestedEventDefinition ||
+        definition === refundCompletedEventDefinition
+          ? { transactionId, refundProviderId: null, reason: null }
+          : {}),
+      });
+      expect(payload.success).toBe(true);
+    }
   });
 
   it('keeps the profile response free of authentication fields', () => {

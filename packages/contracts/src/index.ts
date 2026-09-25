@@ -628,6 +628,13 @@ const sessionTimezoneSchema = z
 
 export const sessionModeSchema = z.enum(['ONLINE', 'OFFLINE']);
 export type SessionMode = z.infer<typeof sessionModeSchema>;
+
+/**
+ * Declared before the Session schemas because `createSessionSchema`,
+ * `updateSessionSchema`, and `sessionSchema` all reference it at module load.
+ */
+export const sessionPaymentModeSchema = z.enum(['FREE', 'PAID']);
+export type SessionPaymentMode = z.infer<typeof sessionPaymentModeSchema>;
 export const sessionStatusSchema = z.enum([
   'SCHEDULED',
   'IN_PROGRESS',
@@ -636,6 +643,13 @@ export const sessionStatusSchema = z.enum([
   'NO_SHOW',
 ]);
 export type SessionStatus = z.infer<typeof sessionStatusSchema>;
+
+/**
+ * Server-owned identifier for the paid Session terms currently in force.
+ * The API stamps this onto a PAID Session; clients only read it back and
+ * echo it to `POST /payments/order` so stale terms are rejected server-side.
+ */
+export const paidSessionTermsVersion = '2026-10-01-v1';
 
 export const createSessionSchema = z
   .object({
@@ -646,6 +660,8 @@ export const createSessionSchema = z
     timezone: sessionTimezoneSchema,
     meetingUrl: externalUrlSchema.optional(),
     locationDetails: z.string().trim().min(1).max(1000).optional(),
+    paymentMode: sessionPaymentModeSchema.optional(),
+    pricePaise: z.number().int().positive().max(100000000).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -672,6 +688,21 @@ export const createSessionSchema = z
         });
       }
     }
+    const isPaid = value.paymentMode === 'PAID';
+    if (isPaid && value.pricePaise === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'PAID sessions require a positive pricePaise in INR paise.',
+        path: ['pricePaise'],
+      });
+    }
+    if (!isPaid && value.pricePaise !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Only PAID sessions can define pricePaise.',
+        path: ['pricePaise'],
+      });
+    }
   });
 export type CreateSession = z.infer<typeof createSessionSchema>;
 
@@ -683,6 +714,8 @@ export const updateSessionSchema = z
     scheduledStart: z.string().datetime({ offset: true }).optional(),
     scheduledEnd: z.string().datetime({ offset: true }).optional(),
     timezone: sessionTimezoneSchema.optional(),
+    paymentMode: sessionPaymentModeSchema.optional(),
+    pricePaise: z.number().int().positive().max(100000000).optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, 'At least one Session field is required.')
@@ -696,6 +729,13 @@ export const updateSessionSchema = z
         code: 'custom',
         message: 'scheduledStart must be before scheduledEnd.',
         path: ['scheduledEnd'],
+      });
+    }
+    if (value.paymentMode === 'FREE' && value.pricePaise !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Only PAID sessions can define pricePaise.',
+        path: ['pricePaise'],
       });
     }
   });
@@ -726,6 +766,9 @@ export const sessionSchema = z
     meetingUrl: externalUrlSchema.nullable(),
     locationDetails: z.string().nullable(),
     googleConferenceStatus: z.enum(['PENDING', 'READY', 'FAILED']).nullable(),
+    paymentMode: sessionPaymentModeSchema,
+    pricePaise: z.number().int().positive().nullable(),
+    termsVersion: z.string().nullable(),
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
   })
@@ -990,6 +1033,150 @@ export const reputationSummarySchema = z
   })
   .strict();
 export type ReputationSummary = z.infer<typeof reputationSummarySchema>;
+
+export const paymentStatusSchema = z.enum([
+  'CREATED',
+  'PENDING',
+  'AUTHORIZED',
+  'CAPTURED',
+  'FAILED',
+  'CANCELLED',
+  'REFUND_PENDING',
+  'REFUNDED',
+  'PARTIALLY_REFUNDED',
+]);
+export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
+export const transactionTypeSchema = z.enum(['PAYMENT', 'REFUND']);
+export type TransactionType = z.infer<typeof transactionTypeSchema>;
+export const transactionStatusSchema = z.enum(['PENDING', 'COMPLETED', 'FAILED']);
+export type TransactionStatus = z.infer<typeof transactionStatusSchema>;
+
+export const createPaymentOrderSchema = z
+  .object({
+    sessionId: idSchema,
+    termsVersion: z.string().trim().min(1).max(64),
+    termsAccepted: z.literal(true),
+  })
+  .strict();
+export type CreatePaymentOrder = z.infer<typeof createPaymentOrderSchema>;
+export const paymentOrderResponseSchema = z
+  .object({
+    paymentId: idSchema,
+    providerOrderId: z.string().min(1),
+    amountPaise: z.number().int().positive(),
+    currency: z.literal('INR'),
+    keyId: z.string().min(1),
+  })
+  .strict();
+export type PaymentOrderResponse = z.infer<typeof paymentOrderResponseSchema>;
+export const verifyPaymentSchema = z
+  .object({
+    paymentId: idSchema,
+    providerOrderId: z.string().min(1),
+    providerPaymentId: z.string().min(1),
+    signature: z.string().min(1),
+  })
+  .strict();
+export type VerifyPayment = z.infer<typeof verifyPaymentSchema>;
+export const refundPaymentSchema = z
+  .object({
+    amountPaise: z.number().int().positive().optional(),
+    reason: z.string().trim().min(1).max(1000),
+  })
+  .strict();
+export type RefundPayment = z.infer<typeof refundPaymentSchema>;
+
+const transactionSchema = z
+  .object({
+    id: idSchema,
+    paymentId: idSchema,
+    sessionId: idSchema,
+    userId: idSchema,
+    type: transactionTypeSchema,
+    amountPaise: z.number().int().positive(),
+    currency: z.literal('INR'),
+    status: transactionStatusSchema,
+    providerReference: z.string().nullable(),
+    createdAt: timestampSchema,
+  })
+  .strict();
+export type Transaction = z.infer<typeof transactionSchema>;
+export const paymentSchema = z
+  .object({
+    id: idSchema,
+    sessionId: idSchema,
+    payerUserId: idSchema,
+    recipientUserId: idSchema,
+    amountPaise: z.number().int().positive(),
+    currency: z.literal('INR'),
+    provider: z.literal('RAZORPAY'),
+    status: paymentStatusSchema,
+    providerOrderId: z.string().nullable(),
+    providerPaymentId: z.string().nullable(),
+    termsVersion: z.string(),
+    termsAcceptedAt: timestampSchema,
+    termsAcceptedBy: idSchema,
+    paidAt: timestampSchema.nullable(),
+    failureReason: z.string().nullable(),
+    refundAmountPaise: z.number().int().nonnegative(),
+    refundProviderId: z.string().nullable(),
+    refundReason: z.string().nullable(),
+    refundedAt: timestampSchema.nullable(),
+    transactions: z.array(transactionSchema),
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type Payment = z.infer<typeof paymentSchema>;
+
+const paymentEventPayloadSchema = z
+  .object({
+    paymentId: idSchema,
+    sessionId: idSchema,
+    payerUserId: idSchema,
+    recipientUserId: idSchema,
+    amountPaise: z.number().int().positive(),
+    currency: z.literal('INR'),
+    status: paymentStatusSchema,
+  })
+  .strict();
+export type PaymentEventPayload = z.infer<typeof paymentEventPayloadSchema>;
+const refundEventPayloadSchema = paymentEventPayloadSchema.extend({
+  transactionId: idSchema,
+  refundProviderId: z.string().nullable(),
+  reason: z.string().nullable(),
+});
+export type RefundEventPayload = z.infer<typeof refundEventPayloadSchema>;
+export const paymentCreatedEventDefinition = defineEvent({
+  name: 'PAYMENT_CREATED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: paymentEventPayloadSchema,
+});
+export const paymentCapturedEventDefinition = defineEvent({
+  name: 'PAYMENT_CAPTURED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: paymentEventPayloadSchema,
+});
+export const paymentFailedEventDefinition = defineEvent({
+  name: 'PAYMENT_FAILED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: paymentEventPayloadSchema,
+});
+export const refundRequestedEventDefinition = defineEvent({
+  name: 'REFUND_REQUESTED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: refundEventPayloadSchema,
+});
+export const refundCompletedEventDefinition = defineEvent({
+  name: 'REFUND_COMPLETED',
+  version: 1,
+  ownerModule: 'payments',
+  payloadSchema: refundEventPayloadSchema,
+});
 
 export const googleConnectionStatusSchema = z
   .object({

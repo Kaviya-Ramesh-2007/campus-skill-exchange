@@ -18,6 +18,7 @@ import { RatingsModule } from './modules/ratings/ratings.module';
 import { BadgesModule } from './modules/badges/badges.module';
 import { AssessmentsModule } from './modules/assessments/assessments.module';
 import { ReputationModule } from './modules/reputation/reputation.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ReputationModule } from './modules/reputation/reputation.module';
     BadgesModule,
     AssessmentsModule,
     ReputationModule,
+    PaymentsModule,
   ],
   providers: [AppLogger, { provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

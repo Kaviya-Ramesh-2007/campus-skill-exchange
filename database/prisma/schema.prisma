@@ -97,6 +97,38 @@ enum OutboxProcessingStatus {
   FAILED
 }
 
+enum SessionPaymentMode {
+  FREE
+  PAID
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 /// A participant is always a User. System roles are authorization permissions,
 /// not participant identities.
 model User {
@@ -126,6 +158,10 @@ model User {
   ratingsReceived       Rating[] @relation("RatingRatedUser")
   assessmentsGiven      Assessment[] @relation("AssessmentAssessor")
   assessmentsReceived   Assessment[] @relation("AssessmentAssessedUser")
+  paymentsMade          Payment[] @relation("PaymentPayer")
+  paymentsReceived      Payment[] @relation("PaymentRecipient")
+  paymentTermsAccepted  Payment[] @relation("PaymentTermsAcceptor")
+  transactions         Transaction[]
   userBadges            UserBadge[]
 
   @@unique([email])
@@ -308,6 +344,9 @@ model LearningSession {
   scheduledStart    DateTime              @map("scheduled_start") @db.Timestamptz(6)
   scheduledEnd      DateTime              @map("scheduled_end") @db.Timestamptz(6)
   timezone          String                @db.VarChar(64)
+  paymentMode       SessionPaymentMode    @default(FREE) @map("payment_mode")
+  pricePaise        Int?                  @map("price_paise")
+  termsVersion      String?               @map("terms_version") @db.VarChar(64)
   meetingUrl        String?               @map("meeting_url") @db.VarChar(2048)
   googleCalendarEventId String?            @map("google_calendar_event_id") @db.VarChar(255)
   googleConferenceId String?              @map("google_conference_id") @db.VarChar(255)
@@ -322,6 +361,8 @@ model LearningSession {
   reminders         SessionReminder[]
   ratings           Rating[]
   assessments       Assessment[]
+  payments          Payment[]
+  transactions      Transaction[]
 
   @@index([hostUserId, status, scheduledStart])
   @@index([participantUserId, status, scheduledStart])
@@ -375,6 +416,65 @@ model Assessment {
   @@index([assessedUserId, createdAt])
   @@index([skillId])
   @@map("assessments")
+}
+
+/// A real INR payment attempt for a paid LearningSession.
+model Payment {
+  id                    String          @id @db.Uuid
+  sessionId             String          @map("session_id") @db.Uuid
+  payerUserId           String          @map("payer_user_id") @db.Uuid
+  recipientUserId       String          @map("recipient_user_id") @db.Uuid
+  amountPaise           Int             @map("amount_paise")
+  currency              String          @default("INR") @db.Char(3)
+  provider              PaymentProvider @default(RAZORPAY)
+  providerOrderId       String?         @unique @map("provider_order_id") @db.VarChar(255)
+  providerPaymentId     String?         @unique @map("provider_payment_id") @db.VarChar(255)
+  status                PaymentStatus   @default(CREATED)
+  termsVersion          String          @map("terms_version") @db.VarChar(64)
+  termsAcceptedAt       DateTime        @map("terms_accepted_at") @db.Timestamptz(6)
+  termsAcceptedBy       String          @map("terms_accepted_by") @db.Uuid
+  paidAt                DateTime?       @map("paid_at") @db.Timestamptz(6)
+  failureReason         String?         @map("failure_reason") @db.VarChar(1000)
+  refundAmountPaise     Int             @default(0) @map("refund_amount_paise")
+  refundProviderId      String?         @unique @map("refund_provider_id") @db.VarChar(255)
+  refundReason          String?         @map("refund_reason") @db.VarChar(1000)
+  refundedAt            DateTime?       @map("refunded_at") @db.Timestamptz(6)
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  session               LearningSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  payer                 User            @relation("PaymentPayer", fields: [payerUserId], references: [id], onDelete: Restrict)
+  recipient             User            @relation("PaymentRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
+  termsAcceptor         User            @relation("PaymentTermsAcceptor", fields: [termsAcceptedBy], references: [id], onDelete: Restrict)
+  transactions          Transaction[]
+
+  @@unique([sessionId, payerUserId])
+  @@index([payerUserId, createdAt])
+  @@index([recipientUserId, createdAt])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+/// Immutable financial events associated with a Payment.
+model Transaction {
+  id                String            @id @db.Uuid
+  paymentId         String            @map("payment_id") @db.Uuid
+  sessionId         String            @map("session_id") @db.Uuid
+  userId            String            @map("user_id") @db.Uuid
+  type              TransactionType
+  amountPaise       Int               @map("amount_paise")
+  currency          String            @db.Char(3)
+  status            TransactionStatus
+  providerReference String?           @map("provider_reference") @db.VarChar(255)
+  providerEventId   String?           @unique @map("provider_event_id") @db.VarChar(255)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  payment           Payment           @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  session           LearningSession   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId, createdAt])
+  @@index([userId, createdAt])
+  @@index([sessionId, createdAt])
+  @@map("transactions")
 }
 
 /// A system-defined achievement that can be awarded to a User.

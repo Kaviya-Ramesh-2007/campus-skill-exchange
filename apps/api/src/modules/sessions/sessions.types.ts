@@ -4,6 +4,7 @@ import type {
   Session,
   SessionEventPayload,
   SessionMode,
+  SessionPaymentMode,
   SessionStatus,
   UpdateSession,
 } from '@campus-skill-exchange/contracts';
@@ -36,6 +37,9 @@ export interface SessionRecord {
   googleCalendarEventId: string | null;
   googleConferenceId: string | null;
   googleConferenceStatus: 'PENDING' | 'READY' | 'FAILED' | null;
+  paymentMode: SessionPaymentMode;
+  pricePaise: number | null;
+  termsVersion: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +69,13 @@ export type SessionUpdate = {
   scheduledStart?: Date;
   scheduledEnd?: Date;
   timezone?: string;
+  /**
+   * Server-resolved paid Session terms. `termsVersion` is stamped by the API
+   * and is always cleared together with the price when the mode is FREE.
+   */
+  paymentMode?: SessionPaymentMode;
+  pricePaise?: number | null;
+  termsVersion?: string | null;
 };
 
 export interface SessionsRepository {

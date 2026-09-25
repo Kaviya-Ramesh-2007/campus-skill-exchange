@@ -56,9 +56,15 @@ The Badge data store adds:
 - `badge_definitions`
 - `user_badges`
 
-The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, Session Request, Session Core, Session Reminder, Google integration, Rating, and Badge migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql`, the Session Core migration is `20260930000000_learning_session_core/migration.sql`, the Session Reminder migration is `20260930010000_session_reminders/migration.sql`, the Google integration migration is `20260930020000_google_meet_integration/migration.sql`, the Rating migration is `20260930030000_rating_foundation/migration.sql`, and the Badge migration is `20260930040000_badge_data_store/migration.sql`.
+The Payments and Transactions data store adds:
 
-The `sessions` table remains the authentication cookie-token store. Additional scheduling features, assessments, payments, notifications, and reports are introduced incrementally by their owning feature prompts.
+- Payment fields on `learning_sessions` (`FREE`/`PAID`, INR paise price, terms version)
+- `payments`
+- `transactions`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, Session Request, Session Core, Session Reminder, Google integration, Rating, Badge, Assessment/Reputation, and Payments migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql`, the Session Core migration is `20260930000000_learning_session_core/migration.sql`, the Session Reminder migration is `20260930010000_session_reminders/migration.sql`, the Google integration migration is `20260930020000_google_meet_integration/migration.sql`, the Rating migration is `20260930030000_rating_foundation/migration.sql`, the Badge migration is `20260930040000_badge_data_store/migration.sql`, the Assessment/Reputation migration is `20260930050000_assessment_reputation/migration.sql`, and the Payments/Transactions migration is `20260930060000_payments_transactions/migration.sql`.
+
+The `sessions` table remains the authentication cookie-token store. Additional scheduling features, assessments, notifications, and reports are introduced incrementally by their owning feature prompts.
 
 ## Configuration
 
@@ -97,6 +103,10 @@ Profile URLs are stored as bounded `VARCHAR(2048)` references and are validated 
 ## Badge data store
 
 `badge_definitions` stores the system-owned badge catalog, with a unique stable `code`, bounded presentation fields, and an optional externally managed `icon_url` reference. `user_badges` records one award per User and BadgeDefinition, with `awarded_at` and a unique `(user_id, badge_definition_id)` boundary. User foreign keys cascade with the owning account; badge-definition foreign keys restrict deletion so awarded history cannot be silently removed. The Badge service exposes controlled future awarding; no eligibility rules, public award route, UI, reputation, or notification workflow is included. A newly created award writes a `BADGE_EARNED` outbox event in the same transaction, while an existing award is idempotent and emits no second event.
+
+## Payments and Transactions
+
+Paid `learning_sessions` store a server-authoritative INR `price_paise` and `terms_version`; FREE sessions store no price. `payments` uses integer paise, Razorpay provider references, explicit terms acceptance timestamps/owners, bounded refund amounts, and a unique `(session_id, payer_user_id)` boundary. `transactions` is an immutable PAYMENT/REFUND ledger with provider references and idempotency boundaries. Razorpay secrets remain server-side; payment success requires server-side signature verification and signed webhook confirmation. Refunds are provider-backed, amount-bounded, and never inferred from negative feedback.
 
 ## Session Reminder table
 
