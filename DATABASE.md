@@ -51,9 +51,14 @@ The Rating API adds:
 
 - `ratings`
 
-The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, Session Request, Session Core, Session Reminder, Google integration, and Rating migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql`, the Session Core migration is `20260930000000_learning_session_core/migration.sql`, the Session Reminder migration is `20260930010000_session_reminders/migration.sql`, the Google integration migration is `20260930020000_google_meet_integration/migration.sql`, and the Rating migration is `20260930030000_rating_foundation/migration.sql`.
+The Badge data store adds:
 
-The `sessions` table remains the authentication cookie-token store. Additional scheduling features, assessments, badges, payments, notifications, and reports are introduced incrementally by their owning feature prompts.
+- `badge_definitions`
+- `user_badges`
+
+The Prisma schema is at `database/prisma/schema.prisma`. Foundation, identity, profile, skill, development, Session Request, Session Core, Session Reminder, Google integration, Rating, and Badge migrations are committed under `database/prisma/migrations/`; the Session Request migration is `20260929000000_session_request_foundation/migration.sql`, the Session Core migration is `20260930000000_learning_session_core/migration.sql`, the Session Reminder migration is `20260930010000_session_reminders/migration.sql`, the Google integration migration is `20260930020000_google_meet_integration/migration.sql`, the Rating migration is `20260930030000_rating_foundation/migration.sql`, and the Badge migration is `20260930040000_badge_data_store/migration.sql`.
+
+The `sessions` table remains the authentication cookie-token store. Additional scheduling features, assessments, payments, notifications, and reports are introduced incrementally by their owning feature prompts.
 
 ## Configuration
 
@@ -88,6 +93,10 @@ Profile URLs are stored as bounded `VARCHAR(2048)` references and are validated 
 ## Rating table
 
 `ratings` stores one optional-feedback rating from a session participant to the other participant after a `COMPLETED` `learning_sessions` row. Ratings are constrained to integer values from 1 through 5, reject self-ratings, and use a unique `(session_id, rater_user_id)` boundary. Rating foreign keys restrict ordinary deletion of a referenced User or Session so rating history is not removed by a cascade. The API derives the rater from the authenticated session, limits access to session participants, and returns only safe display identities and rating content. A successful rating and its versioned `RATING_SUBMITTED` outbox event are written in one transaction.
+
+## Badge data store
+
+`badge_definitions` stores the system-owned badge catalog, with a unique stable `code`, bounded presentation fields, and an optional externally managed `icon_url` reference. `user_badges` records one award per User and BadgeDefinition, with `awarded_at` and a unique `(user_id, badge_definition_id)` boundary. User foreign keys cascade with the owning account; badge-definition foreign keys restrict deletion so awarded history cannot be silently removed. No awarding rules, service, UI, reputation, or notification workflow is included.
 
 ## Session Reminder table
 
@@ -146,7 +155,7 @@ The `outbox_events` table is a minimal durable hand-off for future domain events
 3. Commit both atomically.
 4. Allow a future dispatcher/consumer to process the event idempotently.
 
-The Foundation does not implement event dispatch, retries, notifications, badges, analytics, or business event producers. Prompt 2 adds a versioned `PROFILE_UPDATED` producer backed by the same transactional outbox, and the Rating API adds a versioned `RATING_SUBMITTED` producer; neither implements a dispatcher or consumer.
+The Foundation does not implement event dispatch, retries, notifications, reputation, analytics, or business event producers. Prompt 2 adds a versioned `PROFILE_UPDATED` producer backed by the same transactional outbox, and the Rating API adds a versioned `RATING_SUBMITTED` producer; neither implements a dispatcher or consumer.
 
 ## Future module ownership
 

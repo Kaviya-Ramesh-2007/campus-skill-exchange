@@ -124,6 +124,7 @@ model User {
   participatingLearningSessions LearningSession[] @relation("LearningSessionParticipant")
   ratingsGiven          Rating[] @relation("RatingRater")
   ratingsReceived       Rating[] @relation("RatingRatedUser")
+  userBadges            UserBadge[]
 
   @@unique([email])
   @@index([accountStatus])
@@ -343,6 +344,35 @@ model Rating {
   @@index([sessionId])
   @@index([ratedUserId])
   @@map("ratings")
+}
+
+/// A system-defined achievement that can be awarded to a User.
+model BadgeDefinition {
+  id          String     @id @db.Uuid
+  name        String     @db.VarChar(120)
+  description String     @db.VarChar(1000)
+  code        String     @unique @db.VarChar(64)
+  iconUrl     String?    @map("icon_url") @db.VarChar(2048)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userBadges  UserBadge[]
+
+  @@map("badge_definitions")
+}
+
+/// A User's award of one system-defined BadgeDefinition.
+model UserBadge {
+  id               String          @id @db.Uuid
+  userId           String          @map("user_id") @db.Uuid
+  badgeDefinitionId String         @map("badge_definition_id") @db.Uuid
+  awardedAt        DateTime        @default(now()) @map("awarded_at") @db.Timestamptz(6)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeDefinition  BadgeDefinition @relation(fields: [badgeDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, badgeDefinitionId])
+  @@index([userId, awardedAt])
+  @@index([badgeDefinitionId])
+  @@map("user_badges")
 }
 
 /// Server-side Google OAuth authorization data. Tokens are never returned by the API.
