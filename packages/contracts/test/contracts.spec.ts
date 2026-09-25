@@ -10,6 +10,10 @@ import {
   systemRoleSchema,
   createProfileRequestSchema,
   updateProfileRequestSchema,
+  createLearningGoalRequestSchema,
+  createAvailabilityRequestSchema,
+  createCertificationRequestSchema,
+  createProjectRequestSchema,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -117,6 +121,39 @@ describe('shared contracts', () => {
     expect(createProfileRequestSchema.safeParse({ department: `Math\u0000ematics` }).success).toBe(
       false,
     );
+  });
+
+  it('validates learning, availability, certification, and project foundations', () => {
+    expect(
+      createLearningGoalRequestSchema.safeParse({
+        skillId: '00000000-0000-4000-8000-000000000001',
+        targetLevel: 'ADVANCED',
+      }).success,
+    ).toBe(true);
+    expect(
+      createAvailabilityRequestSchema.safeParse({
+        dayOfWeek: 'MONDAY',
+        startTime: '18:00',
+        endTime: '17:00',
+      }).success,
+    ).toBe(false);
+    expect(
+      createCertificationRequestSchema.safeParse({
+        title: 'Certificate',
+        issuingOrganization: 'Example Org',
+        issueDate: '2026-02-01',
+        expiryDate: '2026-01-01',
+      }).success,
+    ).toBe(false);
+    expect(
+      createProjectRequestSchema.safeParse({
+        title: 'Project',
+        description: 'A project',
+        projectUrl: 'javascript:alert(1)',
+        startDate: '2026-02-01',
+        endDate: '2026-01-01',
+      }).success,
+    ).toBe(false);
   });
 
   it('keeps the profile response free of authentication fields', () => {
