@@ -36,7 +36,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       } else {
         await login({ email, password });
       }
-      router.push('/account');
+      router.push('/dashboard');
       router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Authentication failed.');
