@@ -1212,6 +1212,23 @@ export const aiAssistResponseSchema = z
   .strict();
 export type AiAssistResponse = z.infer<typeof aiAssistResponseSchema>;
 
+export const aiChatSchema = z
+  .object({
+    message: z.string().trim().min(1).max(2000),
+  })
+  .strict();
+export type AiChatRequest = z.infer<typeof aiChatSchema>;
+
+export const aiChatResponseSchema = z
+  .object({
+    content: z.string(),
+    model: z.string(),
+    /** True when no provider is configured; content is then empty. */
+    unavailable: z.boolean(),
+  })
+  .strict();
+export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
+
 export const notificationTypeSchema = z.enum([
   'REQUEST_SENT',
   'REQUEST_ACCEPTED',
