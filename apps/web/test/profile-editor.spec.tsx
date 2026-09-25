@@ -86,6 +86,18 @@ describe('ProfileEditor', () => {
     expect(await screen.findByText('Your profile was created successfully.')).toBeInTheDocument();
   });
 
+  it('shows client validation before submitting invalid profile data', async () => {
+    render(<ProfileEditor profile={null} accountDisplayName="Ada Account" />);
+
+    fireEvent.change(screen.getByLabelText(/Profile image URL/), {
+      target: { value: 'file:///tmp/avatar.png' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create profile' }));
+
+    expect(await screen.findByText(/credential-free HTTP or HTTPS URLs/)).toBeInTheDocument();
+    expect(mocks.createProfile).not.toHaveBeenCalled();
+  });
+
   it('updates an existing profile through the PATCH operation', async () => {
     mocks.updateProfile.mockResolvedValue(profile);
     render(<ProfileEditor profile={profile} accountDisplayName="Account Name" />);
