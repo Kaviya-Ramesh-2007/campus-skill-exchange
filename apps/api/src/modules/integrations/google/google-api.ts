@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
+import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
 import type { calendar_v3 } from 'googleapis';
 import type {
@@ -14,7 +14,7 @@ import type {
 export class GoogleApiClient implements GoogleApi {
   private readonly oauth2;
 
-  constructor(config: ConfigService) {
+  constructor(@Inject(ConfigService) config: ConfigService) {
     this.oauth2 = new google.auth.OAuth2(
       config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
       config.getOrThrow<string>('GOOGLE_CLIENT_SECRET'),
