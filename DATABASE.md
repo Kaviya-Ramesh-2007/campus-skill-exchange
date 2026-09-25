@@ -96,7 +96,7 @@ Profile URLs are stored as bounded `VARCHAR(2048)` references and are validated 
 
 ## Badge data store
 
-`badge_definitions` stores the system-owned badge catalog, with a unique stable `code`, bounded presentation fields, and an optional externally managed `icon_url` reference. `user_badges` records one award per User and BadgeDefinition, with `awarded_at` and a unique `(user_id, badge_definition_id)` boundary. User foreign keys cascade with the owning account; badge-definition foreign keys restrict deletion so awarded history cannot be silently removed. No awarding rules, service, UI, reputation, or notification workflow is included.
+`badge_definitions` stores the system-owned badge catalog, with a unique stable `code`, bounded presentation fields, and an optional externally managed `icon_url` reference. `user_badges` records one award per User and BadgeDefinition, with `awarded_at` and a unique `(user_id, badge_definition_id)` boundary. User foreign keys cascade with the owning account; badge-definition foreign keys restrict deletion so awarded history cannot be silently removed. The Badge service exposes controlled future awarding; no eligibility rules, public award route, UI, reputation, or notification workflow is included. A newly created award writes a `BADGE_EARNED` outbox event in the same transaction, while an existing award is idempotent and emits no second event.
 
 ## Session Reminder table
 
@@ -155,7 +155,7 @@ The `outbox_events` table is a minimal durable hand-off for future domain events
 3. Commit both atomically.
 4. Allow a future dispatcher/consumer to process the event idempotently.
 
-The Foundation does not implement event dispatch, retries, notifications, reputation, analytics, or business event producers. Prompt 2 adds a versioned `PROFILE_UPDATED` producer backed by the same transactional outbox, and the Rating API adds a versioned `RATING_SUBMITTED` producer; neither implements a dispatcher or consumer.
+The Foundation does not implement event dispatch, retries, notifications, reputation, analytics, or business event producers. Prompt 2 adds a versioned `PROFILE_UPDATED` producer backed by the same transactional outbox, the Rating API adds a versioned `RATING_SUBMITTED` producer, and the Badge service adds a versioned `BADGE_EARNED` producer; these modules do not implement a dispatcher or consumer.
 
 ## Future module ownership
 
