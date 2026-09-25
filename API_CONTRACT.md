@@ -26,6 +26,8 @@ Foundation, Prompt 1, and Prompt 2 expose infrastructure, local authentication, 
 | `PATCH` | `/api/v1/profile`               | Update the current user's profile           |
 | `GET`   | `/api/v1/users/:userId/profile` | Get another user's public profile           |
 | `PATCH` | `/api/v1/users/:userId/profile` | Update an owned or ADMIN-authorized profile |
+| `GET`   | `/api/v1/badges`                | List available BadgeDefinitions             |
+| `GET`   | `/api/v1/badges/users/:userId`  | List badges earned by an authorized User    |
 
 The health response is generated from actual process state. Readiness executes a real PostgreSQL `SELECT 1` check and returns `503` with the shared error envelope when the database is unavailable.
 
@@ -238,8 +240,12 @@ Authorization is enforced in backend guards and policies. `USER` and `ADMIN` are
 
 The shared event envelope is defined in `packages/contracts`. Events use UPPER_SNAKE_CASE names, positive integer versions, UUID identifiers, UTC timestamps, correlation/causation IDs, and an idempotency key. Payloads must be owned and versioned by the producing module.
 
-The outbox stores the minimal durable event structure; Prompt 2 adds a profile event producer but does not expose a public event-processing API.
+The outbox stores the minimal durable event structure; Prompt 2 adds a profile event producer, the Rating API adds `RATING_SUBMITTED`, and the Badge service adds `BADGE_EARNED`, but none exposes a public event-processing API.
+
+## Badge boundary
+
+`GET /api/v1/badges` requires an authenticated User and returns safe BadgeDefinition catalog data. `GET /api/v1/badges/users/:userId` requires the authenticated User to be the owner or an `ADMIN`; it returns the User's earned badges. There is intentionally no public badge-award endpoint. The internal Badge service accepts only existing User and BadgeDefinition IDs, is idempotent for an existing award, and writes a `BADGE_EARNED` outbox event only when a new `UserBadge` is created. No eligibility rules are implemented yet.
 
 ## Future route groups
 
-Future prompts may add `/skills`, `/user-skills`, `/learning-goals`, `/availability`, `/certifications`, `/projects`, `/matching`, `/exchanges`, `/requests`, `/sessions`, `/ratings`, `/assessments`, `/badges`, `/payments`, `/transactions`, `/notifications`, `/reports`, `/admin`, and `/analytics` only when their feature is implemented and documented.
+Future prompts may add `/skills`, `/user-skills`, `/learning-goals`, `/availability`, `/certifications`, `/projects`, `/matching`, `/exchanges`, `/requests`, `/sessions`, `/ratings`, `/assessments`, `/payments`, `/transactions`, `/notifications`, `/reports`, `/admin`, and `/analytics` only when their feature is implemented and documented.

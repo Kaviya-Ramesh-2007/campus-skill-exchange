@@ -876,6 +876,45 @@ export const ratingSubmittedEventDefinition = defineEvent({
   payloadSchema: ratingSubmittedEventPayloadSchema,
 });
 
+export const badgeDefinitionSchema = z
+  .object({
+    id: idSchema,
+    name: z.string().min(1).max(120),
+    description: z.string().min(1).max(1000),
+    code: z.string().min(1).max(64),
+    iconUrl: z.string().max(2048).nullable(),
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type BadgeDefinition = z.infer<typeof badgeDefinitionSchema>;
+
+export const userBadgeSchema = z
+  .object({
+    id: idSchema,
+    userId: idSchema,
+    badgeDefinitionId: idSchema,
+    awardedAt: timestampSchema,
+    badgeDefinition: badgeDefinitionSchema,
+  })
+  .strict();
+export type UserBadge = z.infer<typeof userBadgeSchema>;
+
+export const badgeEarnedEventPayloadSchema = z
+  .object({
+    userBadgeId: idSchema,
+    userId: idSchema,
+    badgeDefinitionId: idSchema,
+  })
+  .strict();
+export type BadgeEarnedEventPayload = z.infer<typeof badgeEarnedEventPayloadSchema>;
+export const badgeEarnedEventDefinition = defineEvent({
+  name: 'BADGE_EARNED',
+  version: 1,
+  ownerModule: 'badges',
+  payloadSchema: badgeEarnedEventPayloadSchema,
+});
+
 export const googleConnectionStatusSchema = z
   .object({
     connected: z.boolean(),

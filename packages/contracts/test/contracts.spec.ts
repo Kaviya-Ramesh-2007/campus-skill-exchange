@@ -40,6 +40,9 @@ import {
   createRatingSchema,
   ratingSchema,
   ratingSubmittedEventDefinition,
+  badgeDefinitionSchema,
+  userBadgeSchema,
+  badgeEarnedEventDefinition,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -421,6 +424,45 @@ describe('shared contracts', () => {
         rating: 4,
       }).success,
     ).toBe(true);
+  });
+
+  it('validates badge definitions, user awards, and the earned event', () => {
+    const badgeDefinitionId = '00000000-0000-4000-8000-000000000001';
+    const userId = '00000000-0000-4000-8000-000000000002';
+    const userBadgeId = '00000000-0000-4000-8000-000000000003';
+    const timestamp = '2026-10-01T12:00:00.000Z';
+    const definition = {
+      id: badgeDefinitionId,
+      name: 'First Session',
+      description: 'Completed a first learning session.',
+      code: 'FIRST_SESSION',
+      iconUrl: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    expect(badgeDefinitionSchema.safeParse(definition).success).toBe(true);
+    expect(
+      userBadgeSchema.safeParse({
+        id: userBadgeId,
+        userId,
+        badgeDefinitionId,
+        awardedAt: timestamp,
+        badgeDefinition: definition,
+      }).success,
+    ).toBe(true);
+    expect(
+      badgeEarnedEventDefinition.payloadSchema.safeParse({
+        userBadgeId,
+        userId,
+        badgeDefinitionId,
+      }).success,
+    ).toBe(true);
+    expect(badgeEarnedEventDefinition).toMatchObject({
+      name: 'BADGE_EARNED',
+      version: 1,
+      ownerModule: 'badges',
+    });
   });
 
   it('keeps the profile response free of authentication fields', () => {
