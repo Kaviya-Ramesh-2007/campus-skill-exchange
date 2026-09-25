@@ -11,6 +11,7 @@ import { UsersModule } from './modules/users/users.module';
 import { GrowthModule } from './modules/growth/growth.module';
 import { DiscoveryModule } from './modules/discovery/discovery.module';
 import { MatchingModule } from './modules/matching/matching.module';
+import { RequestsModule } from './modules/requests/requests.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { MatchingModule } from './modules/matching/matching.module';
     GrowthModule,
     DiscoveryModule,
     MatchingModule,
+    RequestsModule,
   ],
   providers: [AppLogger, { provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

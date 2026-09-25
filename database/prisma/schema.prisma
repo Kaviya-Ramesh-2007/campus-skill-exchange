@@ -51,6 +51,13 @@ enum CertificationStatus {
   REJECTED
 }
 
+enum SessionRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
 enum OutboxProcessingStatus {
   PENDING
   PROCESSING
@@ -78,6 +85,8 @@ model User {
   availabilitySlots  Availability[]
   certifications     Certification[]
   projects           Project[]
+  sentSessionRequests SessionRequest[] @relation("SessionRequester")
+  receivedSessionRequests SessionRequest[] @relation("SessionRequestRecipient")
 
   @@unique([email])
   @@index([accountStatus])
@@ -118,6 +127,7 @@ model Skill {
   updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   userSkills     UserSkill[]
   learningGoals  LearningGoal[]
+  sessionRequests SessionRequest[] @relation("SessionRequestSkill")
 
   @@index([name])
   @@map("skills")
@@ -219,6 +229,27 @@ model Project {
 
   @@index([userId, updatedAt])
   @@map("projects")
+}
+
+/// A direct request for a future learning session between two Users.
+/// Scheduling is intentionally not part of this model.
+model SessionRequest {
+  id              String               @id @db.Uuid
+  requesterUserId String               @map("requester_user_id") @db.Uuid
+  recipientUserId String               @map("recipient_user_id") @db.Uuid
+  skillId         String?              @map("skill_id") @db.Uuid
+  message         String?              @db.VarChar(2000)
+  status          SessionRequestStatus @default(PENDING)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  requester       User                 @relation("SessionRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  recipient       User                 @relation("SessionRequestRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  skill           Skill?               @relation("SessionRequestSkill", fields: [skillId], references: [id], onDelete: SetNull)
+
+  @@index([requesterUserId, status, createdAt])
+  @@index([recipientUserId, status, createdAt])
+  @@index([skillId])
+  @@map("session_requests")
 }
 
 /// Server-managed system authorization roles. Registration always creates USER;

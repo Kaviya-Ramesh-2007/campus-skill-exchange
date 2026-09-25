@@ -19,6 +19,13 @@ import {
   matchingQuerySchema,
   matchingUserSchema,
   mutualExchangeSchema,
+  createSessionRequestSchema,
+  updateSessionRequestSchema,
+  sessionRequestSchema,
+  requestSentEventDefinition,
+  requestAcceptedEventDefinition,
+  requestDeclinedEventDefinition,
+  requestCancelledEventDefinition,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -211,6 +218,48 @@ describe('shared contracts', () => {
         explanation: 'Both users can teach a skill the other wants to learn.',
       }).success,
     ).toBe(true);
+  });
+
+  it('validates session request inputs, safe responses, and lifecycle events', () => {
+    const requesterUserId = '00000000-0000-4000-8000-000000000001';
+    const recipientUserId = '00000000-0000-4000-8000-000000000002';
+    const requestId = '00000000-0000-4000-8000-000000000003';
+    const skillId = '00000000-0000-4000-8000-000000000004';
+    const timestamp = '2026-09-29T00:00:00.000Z';
+
+    expect(
+      createSessionRequestSchema.parse({ recipientUserId, skillId, message: 'Hello' }),
+    ).toEqual({ recipientUserId, skillId, message: 'Hello' });
+    expect(updateSessionRequestSchema.safeParse({ status: 'PENDING' }).success).toBe(false);
+    expect(
+      sessionRequestSchema.safeParse({
+        id: requestId,
+        requester: { userId: requesterUserId, displayName: 'Requester' },
+        recipient: { userId: recipientUserId, displayName: 'Recipient' },
+        skill: { id: skillId, name: 'AWS' },
+        message: 'Hello',
+        status: 'PENDING',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        email: 'must-not@example.test',
+      }).success,
+    ).toBe(false);
+    for (const definition of [
+      requestSentEventDefinition,
+      requestAcceptedEventDefinition,
+      requestDeclinedEventDefinition,
+      requestCancelledEventDefinition,
+    ]) {
+      expect(
+        definition.payloadSchema.safeParse({
+          requestId,
+          requesterUserId,
+          recipientUserId,
+          skillId,
+          status: 'PENDING',
+        }).success,
+      ).toBe(true);
+    }
   });
 
   it('keeps the profile response free of authentication fields', () => {
