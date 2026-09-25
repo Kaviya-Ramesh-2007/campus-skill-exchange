@@ -8,19 +8,24 @@ All application API routes are versioned under:
 /api/v1
 ```
 
-Foundation and Prompt 1 expose infrastructure and local authentication routes. Other product routes listed in the architecture plan are not implemented and must not be treated as existing endpoints.
+Foundation, Prompt 1, and Prompt 2 expose infrastructure, local authentication, and professional profile routes. Other product routes listed in the architecture plan are not implemented and must not be treated as existing endpoints.
 
 ## Current routes
 
-| Method | Route                   | Purpose                                     |
-| ------ | ----------------------- | ------------------------------------------- |
-| `GET`  | `/api/v1/health`        | Process liveness check                      |
-| `GET`  | `/api/v1/ready`         | PostgreSQL readiness check                  |
-| `GET`  | `/api/docs`             | Swagger UI for currently implemented routes |
-| `POST` | `/api/v1/auth/register` | Create a local account and session          |
-| `POST` | `/api/v1/auth/login`    | Authenticate with email/password            |
-| `POST` | `/api/v1/auth/logout`   | Revoke the current session                  |
-| `GET`  | `/api/v1/auth/me`       | Return the current authenticated user       |
+| Method  | Route                           | Purpose                                     |
+| ------- | ------------------------------- | ------------------------------------------- |
+| `GET`   | `/api/v1/health`                | Process liveness check                      |
+| `GET`   | `/api/v1/ready`                 | PostgreSQL readiness check                  |
+| `GET`   | `/api/docs`                     | Swagger UI for currently implemented routes |
+| `POST`  | `/api/v1/auth/register`         | Create a local account and session          |
+| `POST`  | `/api/v1/auth/login`            | Authenticate with email/password            |
+| `POST`  | `/api/v1/auth/logout`           | Revoke the current session                  |
+| `GET`   | `/api/v1/auth/me`               | Return the current authenticated user       |
+| `GET`   | `/api/v1/profile`               | Get the current user's profile              |
+| `POST`  | `/api/v1/profile`               | Initialize the current user's profile       |
+| `PATCH` | `/api/v1/profile`               | Update the current user's profile           |
+| `GET`   | `/api/v1/users/:userId/profile` | Get another user's public profile           |
+| `PATCH` | `/api/v1/users/:userId/profile` | Update an owned or ADMIN-authorized profile |
 
 The health response is generated from actual process state. Readiness executes a real PostgreSQL `SELECT 1` check and returns `503` with the shared error envelope when the database is unavailable.
 
@@ -32,7 +37,7 @@ The health response is generated from actual process state. Readiness executes a
 - Use `201` for creation, `204` for successful no-content operations, and appropriate `4xx`/`5xx` statuses for failures.
 - Use request IDs for correlation.
 - Use `Idempotency-Key` for retryable creation and payment commands.
-- Use optimistic concurrency/version checks for editable resources.
+- Use optimistic concurrency/version checks for editable resources when the owning module defines a concurrency contract. Prompt 2 profile updates are explicitly last-write-wins; a future profile revision may add an `expectedVersion` precondition without changing the profile ownership model.
 
 ## Success envelope
 
@@ -78,6 +83,10 @@ Stack traces, database messages, provider payloads, secrets, and internal file p
 | `AUTH_EMAIL_ALREADY_EXISTS` |            409 | Normalized email is already registered |
 | `AUTH_INVALID_INPUT`        |            400 | Authentication input is invalid        |
 | `AUTH_FORBIDDEN`            |            403 | System role or origin is not permitted |
+| `PROFILE_INVALID_INPUT`     |            400 | Profile data or URL is invalid         |
+| `PROFILE_NOT_FOUND`         |            404 | Profile is missing or not public       |
+| `PROFILE_ALREADY_EXISTS`    |            409 | The user already has a profile         |
+| `PROFILE_FORBIDDEN`         |            403 | Caller does not own the profile        |
 | `FORBIDDEN`                 |            403 | Identity lacks resource permission     |
 | `NOT_FOUND`                 |            404 | Resource is unavailable                |
 | `CONFLICT`                  |            409 | State or uniqueness conflict           |
@@ -102,6 +111,47 @@ High-volume activity feeds may introduce cursor pagination through a documented 
 - The API global validation pipe is ready for Zod DTO metadata.
 - Reject unknown fields for sensitive commands.
 - Do not expose database entities directly as response objects; use explicit DTOs/serializers.
+
+## User profile boundary
+
+Profiles are presentation data owned by the `users` module and are associated one-to-one with the existing `User`. Authentication credentials, sessions, account status, and system roles are not copied into a profile. The account's existing `User.displayName` is the fallback display name; the optional profile `displayName` is a separately editable public presentation name.
+
+### `GET /api/v1/profile`
+
+Requires the current session. Returns the current user's profile, or `PROFILE_NOT_FOUND` when it has not been initialized. The response contains only profile data, a safe display name, visibility, and profile timestamps.
+
+### `POST /api/v1/profile`
+
+Requires the current session. Initializes the current user's profile and returns `201`. The request is strict and accepts:
+
+- `displayName` (maximum 120 characters);
+- `department` (maximum 120);
+- `academicYear` (maximum 32);
+- `institution` (maximum 160);
+- `bio` (maximum 2000);
+- `interests` (at most 20 entries, each maximum 80 characters);
+- `profileImageUrl`, `githubUrl`, and `portfolioUrl` (HTTP/HTTPS URLs only, maximum 2048 characters); and
+- `visibility` (`PUBLIC` or `PRIVATE`, default `PUBLIC`).
+
+`file:`, filesystem paths, arbitrary provider paths, and other URL schemes are rejected. The image field is a safe externally managed reference only; Prompt 2 does not implement file upload or claim that a file was stored.
+
+Possible errors: `PROFILE_INVALID_INPUT`, `PROFILE_ALREADY_EXISTS`.
+
+### `PATCH /api/v1/profile`
+
+Requires the current session and updates only the current user's profile. At least one profile field is required. `null` clears an optional field. The ownership is derived from the server session; a browser cannot submit a user ID to change another profile. Prompt 2 uses last-write-wins for profile presentation updates; future revisions may add an explicit version precondition.
+
+### `GET /api/v1/users/:userId/profile`
+
+Public endpoint. Returns a profile only when `visibility` is `PUBLIC`. Missing and private profiles both return `PROFILE_NOT_FOUND` so the endpoint does not reveal private profile existence. It never returns email, password hashes, sessions, system roles, account status, or internal provider data.
+
+### `PATCH /api/v1/users/:userId/profile`
+
+Requires a session. A `USER` may update only their own profile. An `ADMIN` may use the existing system-role framework for authorized profile maintenance. The route does not accept role, account-status, credential, or session fields.
+
+### Profile validation and events
+
+All text is trimmed and bounded; interests are normalized and de-duplicated case-insensitively. URLs must be valid HTTP/HTTPS URLs. A successful update writes a versioned `PROFILE_UPDATED` event to `outbox_events` in the same database transaction as the profile update. The event contains references and changed-field names, not bio text, credentials, or other sensitive data.
 
 ## Authentication boundary
 
@@ -188,8 +238,8 @@ Authorization is enforced in backend guards and policies. `USER` and `ADMIN` are
 
 The shared event envelope is defined in `packages/contracts`. Events use UPPER_SNAKE_CASE names, positive integer versions, UUID identifiers, UTC timestamps, correlation/causation IDs, and an idempotency key. Payloads must be owned and versioned by the producing module.
 
-Foundation stores only the minimal outbox structure; it does not expose a public event-processing API.
+The outbox stores the minimal durable event structure; Prompt 2 adds a profile event producer but does not expose a public event-processing API.
 
 ## Future route groups
 
-Future prompts may add `/users`, `/skills`, `/user-skills`, `/learning-goals`, `/availability`, `/certifications`, `/projects`, `/matching`, `/exchanges`, `/requests`, `/sessions`, `/ratings`, `/assessments`, `/badges`, `/payments`, `/transactions`, `/notifications`, `/reports`, `/admin`, and `/analytics` only when their feature is implemented and documented.
+Future prompts may add `/skills`, `/user-skills`, `/learning-goals`, `/availability`, `/certifications`, `/projects`, `/matching`, `/exchanges`, `/requests`, `/sessions`, `/ratings`, `/assessments`, `/badges`, `/payments`, `/transactions`, `/notifications`, `/reports`, `/admin`, and `/analytics` only when their feature is implemented and documented.

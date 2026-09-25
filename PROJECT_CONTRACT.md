@@ -42,20 +42,28 @@ Prompt 1 security rules:
 - Public registration cannot assign `ADMIN`.
 - OIDC remains a provider abstraction; no external provider is claimed as connected.
 
+Prompt 2 profile security rules:
+
+- Profile ownership is derived from the server session; a `USER` can edit only their own profile, while `ADMIN` uses the existing authorization policy.
+- Public profile responses contain presentation data only and never expose email, credentials, sessions, account status, or system roles.
+- Profile image references are bounded credential-free HTTP/HTTPS URLs; no upload or storage success is simulated.
+- Profile updates emit reference-only `PROFILE_UPDATED` events through the transactional outbox.
+
 ## Current scope
 
-The Foundation established the following infrastructure, and Prompt 1 adds the narrowly scoped authentication/identity implementation:
+The Foundation established the following infrastructure, Prompt 1 added the narrowly scoped authentication/identity implementation, and Prompt 2 adds the professional User Profile foundation:
 
 - npm workspace structure;
 - TypeScript, ESLint, Prettier, test, and build tooling;
 - Next.js and NestJS application shells;
-- shared contracts for errors, pagination, IDs, roles, and event envelopes;
+- shared contracts for errors, pagination, IDs, roles, profile DTOs, and event envelopes;
 - configuration validation and structured logging;
 - health and readiness infrastructure;
 - PostgreSQL/Prisma migration infrastructure;
-- a minimal outbox table and the Prompt 1 identity/session tables;
-- authentication and authorization interfaces, now extended by Prompt 1 with secure local registration, login, opaque server-side sessions, current-user retrieval, logout, and reusable role guards;
-- accessible UI primitives and application route boundaries;
+- a minimal outbox table, the Prompt 1 identity/session tables, and the Prompt 2 profile table;
+- authentication and authorization interfaces, now extended with secure local registration, login, opaque server-side sessions, current-user retrieval, logout, and reusable role guards;
+- a one-to-one public/private profile, ownership enforcement, safe profile URLs, and transactional `PROFILE_UPDATED` production;
+- accessible UI primitives and profile/account route boundaries;
 - tests, CI, Git workflow, and project documentation.
 
 ## Prohibited shortcuts

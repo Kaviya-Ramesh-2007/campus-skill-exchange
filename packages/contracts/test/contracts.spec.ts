@@ -4,8 +4,12 @@ import {
   authUserSchema,
   eventEnvelopeSchema,
   paginationQuerySchema,
+  profileResponseSchema,
+  profileUpdatedEventDefinition,
   registerRequestSchema,
   systemRoleSchema,
+  createProfileRequestSchema,
+  updateProfileRequestSchema,
 } from '../src';
 
 describe('shared contracts', () => {
@@ -84,5 +88,65 @@ describe('shared contracts', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('normalizes profile defaults and keeps profile writes strict', () => {
+    const result = createProfileRequestSchema.parse({ department: '  Computer Science  ' });
+
+    expect(result).toMatchObject({
+      department: 'Computer Science',
+      interests: [],
+      visibility: 'PUBLIC',
+    });
+    expect(createProfileRequestSchema.safeParse({ role: 'ADMIN' }).success).toBe(false);
+    expect(updateProfileRequestSchema.safeParse({}).success).toBe(false);
+    expect(updateProfileRequestSchema.parse({ department: null })).toEqual({ department: null });
+  });
+
+  it('rejects unsafe profile URLs and control characters', () => {
+    expect(
+      createProfileRequestSchema.safeParse({ profileImageUrl: 'file:///tmp/avatar.png' }).success,
+    ).toBe(false);
+    expect(createProfileRequestSchema.safeParse({ githubUrl: 'javascript:alert(1)' }).success).toBe(
+      false,
+    );
+    expect(
+      createProfileRequestSchema.safeParse({ portfolioUrl: 'https://user:password@example.test' })
+        .success,
+    ).toBe(false);
+    expect(createProfileRequestSchema.safeParse({ department: `Math\u0000ematics` }).success).toBe(
+      false,
+    );
+  });
+
+  it('keeps the profile response free of authentication fields', () => {
+    const safeProfile = {
+      id: '00000000-0000-4000-8000-000000000001',
+      userId: '00000000-0000-4000-8000-000000000002',
+      displayName: 'Ada Lovelace',
+      department: 'Computer Science',
+      academicYear: null,
+      institution: null,
+      bio: null,
+      profileImageUrl: null,
+      interests: [],
+      githubUrl: null,
+      portfolioUrl: null,
+      visibility: 'PUBLIC',
+      createdAt: '2026-09-24T00:00:00.000Z',
+      updatedAt: '2026-09-24T00:00:00.000Z',
+    };
+
+    const result = profileResponseSchema.safeParse(safeProfile);
+    expect(result.success).toBe(true);
+    expect(result.success && 'email' in result.data).toBe(false);
+    expect(
+      profileResponseSchema.safeParse({ ...safeProfile, email: 'must-not@example.test' }).success,
+    ).toBe(false);
+    expect(profileUpdatedEventDefinition).toMatchObject({
+      name: 'PROFILE_UPDATED',
+      version: 1,
+      ownerModule: 'users',
+    });
   });
 });

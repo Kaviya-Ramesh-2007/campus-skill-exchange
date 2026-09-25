@@ -53,11 +53,12 @@ The repository currently implements:
 
 - `health` infrastructure endpoints;
 - `auth` local account, session, and authorization foundation;
-- `database`/Prisma infrastructure and identity migrations;
+- `users` professional profile, visibility, validation, and ownership boundaries;
+- `database`/Prisma infrastructure, identity, profile migrations, and transactional outbox writes;
 - platform configuration, logging, validation, and provider interfaces;
-- shared contracts and the outbox schema.
+- shared contracts, profile DTOs, and the `PROFILE_UPDATED` event definition.
 
-The `auth` module owns identity/session data and exposes safe authentication services. Profile, skill, matching, and other product modules remain future work. Empty feature modules are intentionally avoided.
+The `auth` module owns identity/session data and exposes safe authentication services. The `users` module reads the existing `User.displayName` through its profile query and never imports the auth repository or credential models. Profile events contain references and changed-field names, not credentials or unnecessary personal data. Skill, matching, and other product modules remain future work. Empty feature modules are intentionally avoided.
 
 ## Review checklist
 

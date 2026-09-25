@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { defineEvent } from './event-registry';
 
 export const runtimeEnvironments = ['development', 'test', 'production'] as const;
 export type RuntimeEnvironment = (typeof runtimeEnvironments)[number];
@@ -8,6 +9,9 @@ export type SystemRole = z.infer<typeof systemRoleSchema>;
 
 export const accountStatusSchema = z.enum(['ACTIVE', 'SUSPENDED']);
 export type AccountStatus = z.infer<typeof accountStatusSchema>;
+
+export const profileVisibilitySchema = z.enum(['PUBLIC', 'PRIVATE']);
+export type ProfileVisibility = z.infer<typeof profileVisibilitySchema>;
 
 export const idSchema = z.string().uuid();
 export type PublicId = z.infer<typeof idSchema>;
@@ -26,6 +30,10 @@ export const apiErrorCodeSchema = z.enum([
   'AUTH_EMAIL_ALREADY_EXISTS',
   'AUTH_INVALID_INPUT',
   'AUTH_FORBIDDEN',
+  'PROFILE_INVALID_INPUT',
+  'PROFILE_NOT_FOUND',
+  'PROFILE_ALREADY_EXISTS',
+  'PROFILE_FORBIDDEN',
   'FORBIDDEN',
   'NOT_FOUND',
   'CONFLICT',
@@ -102,6 +110,116 @@ export const authResponseSchema = z
   })
   .strict();
 export type AuthResponse = z.infer<typeof authResponseSchema>;
+
+const profileTextSchema = (maxLength: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(maxLength)
+    .refine(
+      (value) =>
+        [...value].every((character) => {
+          const code = character.charCodeAt(0);
+          return code === 9 || code === 10 || code === 13 || (code >= 32 && code !== 127);
+        }),
+      'Text contains unsupported control characters.',
+    );
+
+const profileUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .max(2048)
+  .refine((value) => {
+    try {
+      const parsed = new URL(value);
+      return ['http:', 'https:'].includes(parsed.protocol) && !parsed.username && !parsed.password;
+    } catch {
+      return false;
+    }
+  }, 'URLs must be credential-free HTTP or HTTPS URLs.');
+
+export const profileImageReferenceSchema = profileUrlSchema;
+export type ProfileImageReference = z.infer<typeof profileImageReferenceSchema>;
+
+const profileInterestSchema = profileTextSchema(80).transform((value) =>
+  value.replace(/\s+/g, ' '),
+);
+const profileInterestsSchema = z.array(profileInterestSchema).max(20);
+const profileOptionalTextSchema = (maxLength: number) =>
+  profileTextSchema(maxLength).nullable().optional();
+const profileOptionalUrlSchema = profileUrlSchema.nullable().optional();
+
+export const createProfileRequestSchema = z
+  .object({
+    displayName: profileOptionalTextSchema(120),
+    department: profileOptionalTextSchema(120),
+    academicYear: profileOptionalTextSchema(32),
+    institution: profileOptionalTextSchema(160),
+    bio: profileOptionalTextSchema(2000),
+    profileImageUrl: profileOptionalUrlSchema,
+    interests: profileInterestsSchema.default([]),
+    githubUrl: profileOptionalUrlSchema,
+    portfolioUrl: profileOptionalUrlSchema,
+    visibility: profileVisibilitySchema.default('PUBLIC'),
+  })
+  .strict();
+export type CreateProfileRequest = z.infer<typeof createProfileRequestSchema>;
+
+export const updateProfileRequestSchema = z
+  .object({
+    displayName: profileOptionalTextSchema(120),
+    department: profileOptionalTextSchema(120),
+    academicYear: profileOptionalTextSchema(32),
+    institution: profileOptionalTextSchema(160),
+    bio: profileOptionalTextSchema(2000),
+    profileImageUrl: profileOptionalUrlSchema,
+    interests: profileInterestsSchema.optional(),
+    githubUrl: profileOptionalUrlSchema,
+    portfolioUrl: profileOptionalUrlSchema,
+    visibility: profileVisibilitySchema.optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, 'At least one profile field is required.');
+export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
+
+export const profileResponseSchema = z
+  .object({
+    id: idSchema,
+    userId: idSchema,
+    displayName: z.string().min(1).max(120),
+    department: z.string().nullable(),
+    academicYear: z.string().nullable(),
+    institution: z.string().nullable(),
+    bio: z.string().nullable(),
+    profileImageUrl: profileImageReferenceSchema.nullable(),
+    interests: z.array(z.string().min(1).max(80)),
+    githubUrl: profileUrlSchema.nullable(),
+    portfolioUrl: profileUrlSchema.nullable(),
+    visibility: profileVisibilitySchema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type Profile = z.infer<typeof profileResponseSchema>;
+
+export const profileUpdatedEventPayloadSchema = z
+  .object({
+    profileId: idSchema,
+    userId: idSchema,
+    visibility: profileVisibilitySchema,
+    changedFields: z.array(z.string().regex(/^[A-Za-z][A-Za-z0-9]*$/)).max(20),
+  })
+  .strict();
+export type ProfileUpdatedEventPayload = z.infer<typeof profileUpdatedEventPayloadSchema>;
+
+export const profileUpdatedEventDefinition = defineEvent({
+  name: 'PROFILE_UPDATED',
+  version: 1,
+  ownerModule: 'users',
+  payloadSchema: profileUpdatedEventPayloadSchema,
+});
 
 export const paginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

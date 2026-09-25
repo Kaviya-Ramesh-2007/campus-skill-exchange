@@ -60,7 +60,7 @@ Components are intentionally small and composable. Feature branches must reuse t
 
 ## Product boundary
 
-Prompt 1 adds only the authentication routes and an identity/account view. No profile, skill, matching, payment, product-session, dashboard, admin, or other future feature page exists. Future UI work should add feature components under the web app while keeping shared primitives in `packages/ui`.
+Prompt 1 added authentication routes and an identity/account view. Prompt 2 adds profile view, edit, initialization, and public-profile routes using the existing primitives and semantic native form controls. No skill, matching, payment, product-session, dashboard, admin, or other future feature page exists. Future UI work should add feature components under the web app while keeping shared primitives in `packages/ui`.
 
 ## Adding a component
 

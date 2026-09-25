@@ -17,6 +17,11 @@ enum AccountStatus {
   SUSPENDED
 }
 
+enum ProfileVisibility {
+  PUBLIC
+  PRIVATE
+}
+
 enum OutboxProcessingStatus {
   PENDING
   PROCESSING
@@ -38,10 +43,35 @@ model User {
   identities         AuthIdentity[]
   passwordCredential PasswordCredential?
   sessions           Session[]
+  profile            Profile?
 
   @@unique([email])
   @@index([accountStatus])
   @@map("users")
+}
+
+/// A profile is presentation data owned by an existing User. Authentication
+/// credentials, sessions, account status, and system roles remain in identity
+/// tables and are never copied into this model.
+model Profile {
+  id                String            @id @db.Uuid
+  userId            String            @unique @map("user_id") @db.Uuid
+  publicDisplayName String?           @map("public_display_name") @db.VarChar(120)
+  department        String?           @db.VarChar(120)
+  academicYear      String?           @map("academic_year") @db.VarChar(32)
+  institution       String?           @db.VarChar(160)
+  bio               String?           @db.VarChar(2000)
+  profileImageUrl   String?           @map("profile_image_url") @db.VarChar(2048)
+  interests         String[]          @default([])
+  githubUrl         String?           @map("github_url") @db.VarChar(2048)
+  portfolioUrl      String?           @map("portfolio_url") @db.VarChar(2048)
+  visibility        ProfileVisibility @default(PUBLIC)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([visibility])
+  @@map("profiles")
 }
 
 /// Server-managed system authorization roles. Registration always creates USER;

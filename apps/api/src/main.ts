@@ -33,7 +33,7 @@ async function bootstrap(): Promise<void> {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Campus Skill Exchange API')
     .setDescription(
-      'Campus Skill Exchange API. Authentication and identity endpoints are implemented locally; other product modules remain future work.',
+      'Campus Skill Exchange API. Authentication, identity, and professional profile endpoints are implemented locally; other product modules remain future work.',
     )
     .setVersion('0.0.0')
     .addCookieAuth(config.getOrThrow<string>('AUTH_SESSION_COOKIE_NAME'))
