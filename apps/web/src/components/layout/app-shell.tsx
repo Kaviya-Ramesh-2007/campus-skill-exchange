@@ -24,6 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/">Home</Link>
             <Link href="/discover">Discover</Link>
             <Link href="/profile">Profile</Link>
+            <Link href="/badges">Badges</Link>
             <Link href="/portfolio">Portfolio</Link>
             <Link href="/health">Infrastructure health</Link>
           </nav>
