@@ -129,6 +129,20 @@ enum TransactionStatus {
   FAILED
 }
 
+enum NotificationType {
+  REQUEST_SENT
+  REQUEST_ACCEPTED
+  REQUEST_DECLINED
+  SESSION_SCHEDULED
+  SESSION_UPDATED
+  SESSION_CANCELLED
+  PAYMENT_CAPTURED
+  PAYMENT_FAILED
+  REFUND_REQUESTED
+  REFUND_COMPLETED
+  BADGE_EARNED
+}
+
 /// A participant is always a User. System roles are authorization permissions,
 /// not participant identities.
 model User {
@@ -162,6 +176,7 @@ model User {
   paymentsReceived      Payment[] @relation("PaymentRecipient")
   paymentTermsAccepted  Payment[] @relation("PaymentTermsAcceptor")
   transactions         Transaction[]
+  notifications         Notification[]
   userBadges            UserBadge[]
 
   @@unique([email])
@@ -475,6 +490,25 @@ model Transaction {
   @@index([userId, createdAt])
   @@index([sessionId, createdAt])
   @@map("transactions")
+}
+
+/// An in-app notification derived from a real domain event.
+model Notification {
+  id        String           @id @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String           @db.VarChar(120)
+  message   String           @db.VarChar(500)
+  /// The domain event this notification was projected from, used for idempotency.
+  sourceEventId String        @map("source_event_id") @db.Uuid
+  readAt    DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sourceEventId])
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
 }
 
 /// A system-defined achievement that can be awarded to a User.

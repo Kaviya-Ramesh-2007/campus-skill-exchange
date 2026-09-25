@@ -790,6 +790,108 @@ a {
   text-align: left;
 }
 
+/* Notifications */
+.notification-bell {
+  position: relative;
+  margin-left: auto;
+}
+.notification-bell__trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--cse-space-2);
+  border: 1px solid var(--cse-color-border);
+  border-radius: var(--cse-radius-sm);
+  background: var(--cse-color-surface);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.notification-bell__trigger:hover {
+  background: var(--cse-color-primary-soft);
+}
+.notification-bell__count {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  min-width: 1.15rem;
+  padding: 0 var(--cse-space-1);
+  border-radius: 999px;
+  background: var(--cse-color-danger);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+}
+.notification-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--cse-space-2));
+  right: 0;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: 26rem;
+  overflow-y: auto;
+  padding: var(--cse-space-4);
+  border: 1px solid var(--cse-color-border);
+  border-radius: var(--cse-radius-md);
+  background: var(--cse-color-surface);
+  box-shadow: var(--cse-shadow-md);
+}
+.notification-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cse-space-2);
+  margin-bottom: var(--cse-space-3);
+}
+.notification-panel__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.notification-list {
+  display: grid;
+  gap: var(--cse-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.notification-item__button {
+  display: grid;
+  gap: var(--cse-space-1);
+  width: 100%;
+  padding: var(--cse-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--cse-radius-sm);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.notification-item__button:hover:not(:disabled) {
+  background: var(--cse-color-canvas);
+}
+.notification-item__button:disabled {
+  cursor: default;
+}
+.notification-item__button--unread {
+  border-color: var(--cse-color-primary-soft);
+  background: var(--cse-color-primary-soft);
+}
+.notification-item__title {
+  display: flex;
+  align-items: center;
+  gap: var(--cse-space-2);
+  font-weight: 600;
+}
+.notification-item__message {
+  color: var(--cse-color-muted);
+  font-size: 0.9rem;
+}
+.notification-item__time {
+  color: var(--cse-color-subtle);
+  font-size: 0.8rem;
+}
+
 @media (max-width: 700px) {
   .auth-nav-links {
     order: 4;
