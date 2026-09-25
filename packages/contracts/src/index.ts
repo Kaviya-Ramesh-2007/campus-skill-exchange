@@ -1178,6 +1178,40 @@ export const refundCompletedEventDefinition = defineEvent({
   payloadSchema: refundEventPayloadSchema,
 });
 
+export const aiAssistActionSchema = z.enum([
+  'explain_match',
+  'session_topics',
+  'session_agenda',
+  'draft_message',
+  'summarize',
+]);
+export type AiAssistAction = z.infer<typeof aiAssistActionSchema>;
+
+/**
+ * Free-text context the authenticated User supplies. It is treated as untrusted
+ * user input, never as instructions, and the provider is told so explicitly.
+ */
+export const aiAssistSchema = z
+  .object({
+    action: aiAssistActionSchema,
+    context: z.string().trim().min(3).max(4000),
+    additionalNotes: z.string().trim().min(1).max(1000).optional(),
+  })
+  .strict();
+export type AiAssistRequest = z.infer<typeof aiAssistSchema>;
+
+export const aiAssistResponseSchema = z
+  .object({
+    action: aiAssistActionSchema,
+    /** The raw model output. Empty text is never presented as a real answer. */
+    content: z.string(),
+    model: z.string(),
+    /** True when no provider is configured; content is then empty. */
+    unavailable: z.boolean(),
+  })
+  .strict();
+export type AiAssistResponse = z.infer<typeof aiAssistResponseSchema>;
+
 export const notificationTypeSchema = z.enum([
   'REQUEST_SENT',
   'REQUEST_ACCEPTED',
