@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SessionsService } from '../src/modules/sessions/sessions.service';
 import { reminderTimesFor } from '../src/modules/sessions/session-reminders';
+import type { GoogleIntegrationService } from '../src/modules/integrations/google/google-integration.service';
 import {
   DuplicateSessionError,
   SessionParticipantError,
@@ -64,6 +65,12 @@ class FakeSessionsRepository implements SessionsRepository {
     actorUserId: string,
     data: CreateSession,
     event: EventEnvelope<SessionEventPayload>,
+    googleData?: {
+      eventId: string;
+      conferenceId: string | null;
+      meetingUrl: string | null;
+      conferenceStatus: 'PENDING' | 'READY' | 'FAILED';
+    } | null,
   ): Promise<SessionRecord> {
     if (this.request.status !== 'ACCEPTED') throw new SessionRequestNotAcceptedError();
     if (
@@ -90,6 +97,9 @@ class FakeSessionsRepository implements SessionsRepository {
       timezone: data.timezone,
       meetingUrl: data.meetingUrl ?? null,
       locationDetails: data.locationDetails ?? null,
+      googleCalendarEventId: googleData?.eventId ?? null,
+      googleConferenceId: googleData?.conferenceId ?? null,
+      googleConferenceStatus: googleData?.conferenceStatus ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -111,6 +121,12 @@ class FakeSessionsRepository implements SessionsRepository {
     },
     events: EventEnvelope<SessionEventPayload>[],
     _scheduleChanged: boolean,
+    googleData?: {
+      eventId: string;
+      conferenceId: string | null;
+      meetingUrl: string | null;
+      conferenceStatus: 'PENDING' | 'READY' | 'FAILED';
+    } | null,
   ): Promise<SessionRecord | null> {
     const row = this.sessions.get(id);
     if (!row || row.status !== fromStatus) return null;
@@ -118,6 +134,21 @@ class FakeSessionsRepository implements SessionsRepository {
       ...row,
       ...update,
       status: update.status ?? row.status,
+      ...(googleData === undefined
+        ? {}
+        : googleData === null
+          ? {
+              googleCalendarEventId: null,
+              googleConferenceId: null,
+              googleConferenceStatus: null,
+              meetingUrl: null,
+            }
+          : {
+              googleCalendarEventId: googleData.eventId,
+              googleConferenceId: googleData.conferenceId,
+              googleConferenceStatus: googleData.conferenceStatus,
+              meetingUrl: googleData.meetingUrl,
+            }),
       updatedAt: new Date(),
     };
     this.sessions.set(id, updated);
@@ -128,7 +159,22 @@ class FakeSessionsRepository implements SessionsRepository {
 
 function serviceWithRepository() {
   const repository = new FakeSessionsRepository();
-  return { repository, service: new SessionsService(repository) };
+  const google = {
+    createEvent: async () => ({
+      eventId: 'google-event-1',
+      conferenceId: 'conference-1',
+      meetingUrl: 'https://meet.example.test/conference-1',
+      conferenceStatus: 'READY' as const,
+    }),
+    updateEvent: async () => ({
+      eventId: 'google-event-1',
+      conferenceId: 'conference-1',
+      meetingUrl: 'https://meet.example.test/conference-1',
+      conferenceStatus: 'READY' as const,
+    }),
+    deleteEvent: async () => undefined,
+  } as unknown as GoogleIntegrationService;
+  return { repository, service: new SessionsService(repository, google) };
 }
 
 describe('SessionsService', () => {

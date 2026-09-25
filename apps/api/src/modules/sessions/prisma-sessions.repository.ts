@@ -15,7 +15,9 @@ import {
   DuplicateSessionError,
   SessionParticipantError,
   SessionRequestNotAcceptedError,
+  type SessionGoogleData,
   type SessionListResult,
+  type SessionParticipantDirectory,
   type SessionRecord,
   type SessionRequestRecord,
   type SessionsRepository,
@@ -59,6 +61,18 @@ export class PrismaSessionsRepository implements SessionsRepository {
     });
   }
 
+  async findParticipantEmails(userIds: string[]): Promise<SessionParticipantDirectory[]> {
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, email: true, displayName: true },
+    });
+    return users.map((user) => ({
+      userId: user.id,
+      email: user.email,
+      displayName: user.displayName,
+    }));
+  }
+
   async findById(id: string): Promise<SessionRecord | null> {
     const row = await this.prisma.learningSession.findUnique({
       where: { id },
@@ -89,6 +103,7 @@ export class PrismaSessionsRepository implements SessionsRepository {
     actorUserId: string,
     input: CreateSession,
     event: EventEnvelope<SessionEventPayload>,
+    googleData?: SessionGoogleData | null,
   ): Promise<SessionRecord> {
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -123,8 +138,11 @@ export class PrismaSessionsRepository implements SessionsRepository {
             scheduledStart: new Date(input.scheduledStart),
             scheduledEnd: new Date(input.scheduledEnd),
             timezone: input.timezone,
-            meetingUrl: input.meetingUrl ?? null,
+            meetingUrl: googleData?.meetingUrl ?? null,
             locationDetails: input.locationDetails ?? null,
+            googleCalendarEventId: googleData?.eventId ?? null,
+            googleConferenceId: googleData?.conferenceId ?? null,
+            googleConferenceStatus: googleData?.conferenceStatus ?? null,
           },
           include: sessionInclude,
         });
@@ -146,11 +164,30 @@ export class PrismaSessionsRepository implements SessionsRepository {
     update: SessionUpdate,
     events: EventEnvelope<SessionEventPayload>[],
     scheduleChanged: boolean,
+    googleData?: SessionGoogleData | null,
   ): Promise<SessionRecord | null> {
     return this.prisma.$transaction(async (tx) => {
+      const data = {
+        ...update,
+        ...(googleData === undefined
+          ? {}
+          : googleData === null
+            ? {
+                meetingUrl: null,
+                googleCalendarEventId: null,
+                googleConferenceId: null,
+                googleConferenceStatus: null,
+              }
+            : {
+                meetingUrl: googleData.meetingUrl,
+                googleCalendarEventId: googleData.eventId,
+                googleConferenceId: googleData.conferenceId,
+                googleConferenceStatus: googleData.conferenceStatus,
+              }),
+      };
       const updated = await tx.learningSession.updateMany({
         where: { id, status: fromStatus },
-        data: update as Prisma.LearningSessionUpdateInput,
+        data: data as Prisma.LearningSessionUpdateInput,
       });
       if (updated.count === 0) return null;
       const row = await tx.learningSession.findUnique({ where: { id }, include: sessionInclude });
@@ -261,6 +298,9 @@ export class PrismaSessionsRepository implements SessionsRepository {
       timezone: row.timezone,
       meetingUrl: row.meetingUrl,
       locationDetails: row.locationDetails,
+      googleCalendarEventId: row.googleCalendarEventId,
+      googleConferenceId: row.googleConferenceId,
+      googleConferenceStatus: row.googleConferenceStatus,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

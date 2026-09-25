@@ -13,6 +13,7 @@ import { DiscoveryModule } from './modules/discovery/discovery.module';
 import { MatchingModule } from './modules/matching/matching.module';
 import { RequestsModule } from './modules/requests/requests.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
+import { GoogleIntegrationModule } from './modules/integrations/google/google-integration.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { SessionsModule } from './modules/sessions/sessions.module';
     MatchingModule,
     RequestsModule,
     SessionsModule,
+    GoogleIntegrationModule,
   ],
   providers: [AppLogger, { provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

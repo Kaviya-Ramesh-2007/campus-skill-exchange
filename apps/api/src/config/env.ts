@@ -24,6 +24,12 @@ const environmentSchema = z
       )
       .default('cse_session'),
     AUTH_SESSION_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
+    GOOGLE_CLIENT_ID: z.string().default(''),
+    GOOGLE_CLIENT_SECRET: z.string().default(''),
+    GOOGLE_REDIRECT_URI: z
+      .string()
+      .url()
+      .default('http://localhost:3001/api/v1/integrations/google/callback'),
   })
   .superRefine((config, context) => {
     if (config.AUTH_SESSION_SAME_SITE === 'none' && config.NODE_ENV !== 'production') {
