@@ -530,6 +530,88 @@ export const mutualExchangeSchema = z
 export type MutualExchange = z.infer<typeof mutualExchangeSchema>;
 export const mutualExchangesResponseSchema = createPaginatedResponseSchema(mutualExchangeSchema);
 
+export const sessionRequestStatusSchema = z.enum(['PENDING', 'ACCEPTED', 'DECLINED', 'CANCELLED']);
+export type SessionRequestStatus = z.infer<typeof sessionRequestStatusSchema>;
+
+export const createSessionRequestSchema = z
+  .object({
+    recipientUserId: idSchema,
+    skillId: idSchema.optional(),
+    message: z.string().trim().min(1).max(2000).optional(),
+  })
+  .strict();
+export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
+
+export const updateSessionRequestSchema = z
+  .object({
+    status: z.enum(['ACCEPTED', 'DECLINED', 'CANCELLED']),
+  })
+  .strict();
+export type UpdateSessionRequest = z.infer<typeof updateSessionRequestSchema>;
+
+export const sessionRequestQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+export type SessionRequestQuery = z.infer<typeof sessionRequestQuerySchema>;
+
+const sessionRequestIdentitySchema = z
+  .object({ userId: idSchema, displayName: z.string() })
+  .strict();
+const sessionRequestSkillSchema = z.object({ id: idSchema, name: z.string() }).strict();
+export const sessionRequestSchema = z
+  .object({
+    id: idSchema,
+    requester: sessionRequestIdentitySchema,
+    recipient: sessionRequestIdentitySchema,
+    skill: sessionRequestSkillSchema.nullable(),
+    message: z.string().nullable(),
+    status: sessionRequestStatusSchema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strict();
+export type SessionRequest = z.infer<typeof sessionRequestSchema>;
+export const sessionRequestsResponseSchema = createPaginatedResponseSchema(sessionRequestSchema);
+
+export const sessionRequestEventPayloadSchema = z
+  .object({
+    requestId: idSchema,
+    requesterUserId: idSchema,
+    recipientUserId: idSchema,
+    skillId: idSchema.nullable(),
+    status: sessionRequestStatusSchema,
+  })
+  .strict();
+export type SessionRequestEventPayload = z.infer<typeof sessionRequestEventPayloadSchema>;
+
+export const requestSentEventDefinition = defineEvent({
+  name: 'REQUEST_SENT',
+  version: 1,
+  ownerModule: 'requests',
+  payloadSchema: sessionRequestEventPayloadSchema,
+});
+export const requestAcceptedEventDefinition = defineEvent({
+  name: 'REQUEST_ACCEPTED',
+  version: 1,
+  ownerModule: 'requests',
+  payloadSchema: sessionRequestEventPayloadSchema,
+});
+export const requestDeclinedEventDefinition = defineEvent({
+  name: 'REQUEST_DECLINED',
+  version: 1,
+  ownerModule: 'requests',
+  payloadSchema: sessionRequestEventPayloadSchema,
+});
+export const requestCancelledEventDefinition = defineEvent({
+  name: 'REQUEST_CANCELLED',
+  version: 1,
+  ownerModule: 'requests',
+  payloadSchema: sessionRequestEventPayloadSchema,
+});
+
 export const eventTypeSchema = z.string().regex(/^[A-Z][A-Z0-9_]*$/, {
   message: 'Event types must use UPPER_SNAKE_CASE.',
 });
