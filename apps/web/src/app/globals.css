@@ -1365,7 +1365,91 @@ a.admin-card:hover {
   font-size: 0.8rem;
 }
 
+/* Session requests: the send action on a public profile and the request inbox. */
+.send-request {
+  display: flex;
+  justify-content: flex-end;
+}
+.send-request__state {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  border: 1px solid var(--cse-color-border);
+  border-radius: var(--cse-radius-md);
+  background: var(--cse-color-primary-soft);
+  padding: var(--cse-space-3) var(--cse-space-4);
+}
+.send-request__state-label {
+  font-weight: 700;
+}
+.send-request__state-detail {
+  color: var(--cse-color-muted);
+  font-size: 0.9rem;
+}
+.send-request-form {
+  display: grid;
+  gap: var(--cse-space-4);
+}
+.send-request-form__intro {
+  margin: 0;
+  color: var(--cse-color-muted);
+  line-height: 1.6;
+}
+.send-request-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cse-space-3);
+}
+.requests-list {
+  display: grid;
+  gap: var(--cse-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.request-card {
+  display: grid;
+  gap: var(--cse-space-3);
+}
+.request-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cse-space-3);
+}
+.request-card__direction {
+  margin: 0 0 0.2rem;
+  color: var(--cse-color-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.request-card__name {
+  margin: 0;
+  font-size: 1.25rem;
+  overflow-wrap: anywhere;
+}
+.request-card__skill,
+.request-card__message {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.request-card__message {
+  color: var(--cse-color-muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.request-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cse-space-3);
+}
+
 @media (max-width: 700px) {
+  .send-request {
+    justify-content: flex-start;
+  }
   .auth-nav-links {
     order: 4;
     width: 100%;

@@ -8,6 +8,7 @@ import type { Profile } from '@campus-skill-exchange/contracts';
 import { useAuth } from '../../../../../features/auth/auth-provider';
 import { getPublicProfile } from '../../../../../features/profile/profile-api';
 import { ProfileView } from '../../../../../features/profile/profile-view';
+import { SendRequestAction } from '../../../../../features/requests/send-request-action';
 import { ApiClientError } from '../../../../../services/api-client';
 
 export default function PublicProfilePage() {
@@ -72,7 +73,21 @@ export default function PublicProfilePage() {
         />
       )}
 
-      {profile && <ProfileView profile={profile} isOwnProfile={user?.id === profile.userId} />}
+      {profile && (
+        <>
+          <ProfileView profile={profile} isOwnProfile={user?.id === profile.userId} />
+          {/* A User never requests themselves, so the action is hidden on their own profile. */}
+          {user && user.id !== profile.userId && (
+            <section className="send-request" aria-label="Session request">
+              <SendRequestAction
+                currentUserId={user.id}
+                recipientUserId={profile.userId}
+                recipientName={profile.displayName}
+              />
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }

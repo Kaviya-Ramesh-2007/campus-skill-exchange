@@ -13,6 +13,7 @@ const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/discover', label: 'Discover' },
+  { href: '/requests', label: 'Requests' },
   { href: '/payments', label: 'Payments' },
 ];
 
