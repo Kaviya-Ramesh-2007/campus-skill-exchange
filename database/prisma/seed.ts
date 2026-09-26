@@ -11,7 +11,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import argon2 from 'argon2';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -49,19 +49,25 @@ function assertSafeToRun(): void {
 }
 
 /**
- * Generates a guaranteed-valid UUID that is stable for the lifetime of one run,
- * so cross-references (skill -> UserSkill, badge -> UserBadge) stay consistent.
- * Idempotency does not depend on these ids: every write is keyed on a natural
- * unique constraint (User.email, Skill.normalizedName, BadgeDefinition.code).
+ * Deterministic, RFC-4122-shaped v4 UUID derived from a stable namespace.
+ *
+ * It must be stable across runs: rows are upserted on natural keys
+ * (Skill.normalizedName, BadgeDefinition.code), so the `create` branch only
+ * fires the first time. If the generated id changed between runs, a re-seed
+ * would reference a Skill that already exists under a different id and violate
+ * the foreign key.
  */
-const assignedIds = new Map<string, string>();
-const id = (namespace: string): string => {
-  const existing = assignedIds.get(namespace);
-  if (existing) return existing;
-  const created = randomUUID();
-  assignedIds.set(namespace, created);
-  return created;
-};
+function deterministicUuid(namespace: string): string {
+  const hash = createHash('sha1').update(namespace).digest('hex');
+  const variant = '89ab'[parseInt(hash[16] ?? '0', 16) % 4];
+  return [
+    hash.slice(0, 8),
+    hash.slice(8, 12),
+    `4${hash.slice(13, 16)}`,
+    `${variant}${hash.slice(17, 20)}`,
+    hash.slice(20, 32),
+  ].join('-');
+}
 
 const SKILLS = [
   { key: 'java', name: 'Java' },
@@ -75,7 +81,7 @@ const SKILLS = [
   { key: 'cloud', name: 'Cloud Computing' },
   { key: 'dbms', name: 'DBMS' },
 ];
-const skillId = (key: string) => id('skill:' + key);
+const newSkillId = (key: string) => deterministicUuid('cse-demo:skill:' + key);
 
 interface DemoUserSpec {
   key: string;
@@ -349,8 +355,8 @@ const BADGES = [
   },
 ];
 
-const userId = (key: string) => id('user:' + key);
-const badgeId = (key: string) => id('badge:' + key);
+const userId = (key: string) => deterministicUuid('cse-demo:user:' + key);
+const newBadgeId = (key: string) => deterministicUuid('cse-demo:badge:' + key);
 
 async function seed(): Promise<void> {
   assertSafeToRun();
@@ -362,31 +368,46 @@ async function seed(): Promise<void> {
   const passwordHash = await argon2.hash(password, ARGON2_OPTIONS);
   const now = new Date();
 
-  for (const [index, skill] of SKILLS.entries()) {
-    await prisma.skill.upsert({
+  // The id returned by the upsert is the authoritative one: on a re-seed the
+  // row already exists, so `create` is skipped and the stored id wins.
+  const resolvedSkillIds = new Map<string, string>();
+  for (const skill of SKILLS) {
+    const row = await prisma.skill.upsert({
       where: { normalizedName: skill.name.toLowerCase() },
       update: { name: skill.name },
       create: {
-        id: skillId(skill.key),
+        id: newSkillId(skill.key),
         name: skill.name,
         normalizedName: skill.name.toLowerCase(),
       },
     });
-    void index;
+    resolvedSkillIds.set(skill.key, row.id);
   }
+  const skillId = (key: string): string => {
+    const resolved = resolvedSkillIds.get(key);
+    if (!resolved) throw new Error(`Unknown demo skill: ${key}`);
+    return resolved;
+  };
 
+  const resolvedBadgeIds = new Map<string, string>();
   for (const badge of BADGES) {
-    await prisma.badgeDefinition.upsert({
+    const row = await prisma.badgeDefinition.upsert({
       where: { code: badge.code },
       update: { name: badge.name, description: badge.description },
       create: {
-        id: badgeId(badge.key),
+        id: newBadgeId(badge.key),
         code: badge.code,
         name: badge.name,
         description: badge.description,
       },
     });
+    resolvedBadgeIds.set(badge.key, row.id);
   }
+  const badgeId = (key: string): string => {
+    const resolved = resolvedBadgeIds.get(key);
+    if (!resolved) throw new Error(`Unknown demo badge: ${key}`);
+    return resolved;
+  };
 
   for (const user of USERS) {
     const uid = userId(user.key);
@@ -437,7 +458,7 @@ async function seed(): Promise<void> {
         visibility: 'PUBLIC',
       },
       create: {
-        id: id('profile:' + user.key),
+        id: deterministicUuid('cse-demo:profile:' + user.key),
         userId: finalId,
         publicDisplayName: user.displayName,
         department: user.profile.department,
