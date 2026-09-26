@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Alert, Badge, Button, Card, EmptyState, Loading } from '@campus-skill-exchange/ui';
 import type { LearningGoal, Profile, Session } from '@campus-skill-exchange/contracts';
 import { useAuth } from '../../../features/auth/auth-provider';
+import { ApiClientError } from '../../../services/api-client';
 import { getCurrentProfile } from '../../../features/profile/profile-api';
 import { listLearningGoals } from '../../../features/growth/growth-api';
 import { listSessions } from '../../../features/payments/sessions-api';
@@ -29,6 +30,22 @@ function profileCompletion(profile: Profile | null): { done: number; total: numb
     return Array.isArray(value) ? value.length > 0 : Boolean(value && String(value).trim());
   }).length;
   return { done, total: PROFILE_FIELDS.length };
+}
+
+/** Narrows an unknown payload to an array without ever throwing. */
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+/**
+ * `GET /profile` answers 404 PROFILE_NOT_FOUND until a User creates a profile.
+ * That is an expected state, so it must not be reported as a load failure.
+ */
+function isProfileMissing(reason: unknown): boolean {
+  return (
+    reason instanceof ApiClientError &&
+    (reason.status === 404 || reason.code === 'PROFILE_NOT_FOUND')
+  );
 }
 
 function formatWhen(iso: string): string {
@@ -59,12 +76,25 @@ export default function DashboardPage() {
     const [profileResult, goalResult, sessionResult, notificationResult] = await Promise.allSettled(
       [getCurrentProfile(), listLearningGoals(), listSessions(), listNotifications()],
     );
-    if (profileResult.status === 'fulfilled') setProfile(profileResult.value);
-    if (goalResult.status === 'fulfilled') setGoals(goalResult.value);
-    if (sessionResult.status === 'fulfilled') setSessions(sessionResult.value.items);
-    if (notificationResult.status === 'fulfilled') setNotifications(notificationResult.value.items);
-    if (profileResult.status === 'rejected') {
+
+    if (profileResult.status === 'fulfilled') {
+      setProfile(profileResult.value);
+    } else if (isProfileMissing(profileResult.reason)) {
+      // A newly registered User has no profile yet. That is a normal empty
+      // state, not an error: completion simply starts at 0%.
+      setProfile(null);
+    } else {
       setError('We could not load your profile right now.');
+    }
+
+    // Guard against a non-array payload so a malformed response renders an
+    // empty panel instead of crashing the page.
+    if (goalResult.status === 'fulfilled') setGoals(asArray(goalResult.value));
+    if (sessionResult.status === 'fulfilled') {
+      setSessions(asArray(sessionResult.value?.items));
+    }
+    if (notificationResult.status === 'fulfilled') {
+      setNotifications(asArray(notificationResult.value?.items));
     }
     setLoading(false);
   }, [user]);
