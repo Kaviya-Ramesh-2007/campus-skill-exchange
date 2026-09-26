@@ -20,14 +20,18 @@
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
     "db:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
     "db:reset": "prisma migrate reset --schema prisma/schema.prisma",
-    "db:studio": "prisma studio --schema prisma/schema.prisma"
+    "db:studio": "prisma studio --schema prisma/schema.prisma",
+    "demo:seed": "tsx prisma/seed.ts seed",
+    "demo:reset": "tsx prisma/seed.ts reset"
   },
   "dependencies": {
     "@prisma/client": "6.12.0"
   },
   "devDependencies": {
     "@types/node": "24.13.6",
+    "argon2": "0.45.1",
     "prisma": "6.12.0",
+    "tsx": "4.23.15",
     "typescript": "5.9.3"
   }
 }
