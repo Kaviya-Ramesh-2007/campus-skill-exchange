@@ -108,23 +108,23 @@ export class LearningGoalsController {
   constructor(@Inject(GrowthService) private readonly service: GrowthService) {}
   @Get()
   @ApiCookieAuth()
-  list(@CurrentUser() user: { id: string }) {
-    return { success: true, data: this.service.listLearningGoals(user.id) };
+  async list(@CurrentUser() user: { id: string }) {
+    return { success: true, data: await this.service.listLearningGoals(user.id) };
   }
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiCookieAuth()
-  create(@CurrentUser() user: { id: string }, @Body() body: LearningGoalDto) {
-    return { success: true, data: this.service.createLearningGoal(user.id, body) };
+  async create(@CurrentUser() user: { id: string }, @Body() body: LearningGoalDto) {
+    return { success: true, data: await this.service.createLearningGoal(user.id, body) };
   }
   @Patch(':id')
   @ApiCookieAuth()
-  update(
+  async update(
     @CurrentUser() user: { id: string },
     @Param('id', idPipe) id: string,
     @Body() body: LearningGoalUpdateDto,
   ) {
-    return { success: true, data: this.service.updateLearningGoal(id, user.id, body) };
+    return { success: true, data: await this.service.updateLearningGoal(id, user.id, body) };
   }
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -140,23 +140,23 @@ export class AvailabilityController {
   constructor(@Inject(GrowthService) private readonly service: GrowthService) {}
   @Get()
   @ApiCookieAuth()
-  list(@CurrentUser() user: { id: string }) {
-    return { success: true, data: this.service.listAvailability(user.id) };
+  async list(@CurrentUser() user: { id: string }) {
+    return { success: true, data: await this.service.listAvailability(user.id) };
   }
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiCookieAuth()
-  create(@CurrentUser() user: { id: string }, @Body() body: AvailabilityDto) {
-    return { success: true, data: this.service.createAvailability(user.id, body) };
+  async create(@CurrentUser() user: { id: string }, @Body() body: AvailabilityDto) {
+    return { success: true, data: await this.service.createAvailability(user.id, body) };
   }
   @Patch(':id')
   @ApiCookieAuth()
-  update(
+  async update(
     @CurrentUser() user: { id: string },
     @Param('id', idPipe) id: string,
     @Body() body: AvailabilityUpdateDto,
   ) {
-    return { success: true, data: this.service.updateAvailability(id, user.id, body) };
+    return { success: true, data: await this.service.updateAvailability(id, user.id, body) };
   }
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -172,23 +172,23 @@ export class CertificationsController {
   constructor(@Inject(GrowthService) private readonly service: GrowthService) {}
   @Get()
   @ApiCookieAuth()
-  list(@CurrentUser() user: { id: string }) {
-    return { success: true, data: this.service.listCertifications(user.id) };
+  async list(@CurrentUser() user: { id: string }) {
+    return { success: true, data: await this.service.listCertifications(user.id) };
   }
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiCookieAuth()
-  create(@CurrentUser() user: { id: string }, @Body() body: CertificationDto) {
-    return { success: true, data: this.service.createCertification(user.id, body) };
+  async create(@CurrentUser() user: { id: string }, @Body() body: CertificationDto) {
+    return { success: true, data: await this.service.createCertification(user.id, body) };
   }
   @Patch(':id')
   @ApiCookieAuth()
-  update(
+  async update(
     @CurrentUser() user: { id: string },
     @Param('id', idPipe) id: string,
     @Body() body: CertificationUpdateDto,
   ) {
-    return { success: true, data: this.service.updateCertification(id, user.id, body) };
+    return { success: true, data: await this.service.updateCertification(id, user.id, body) };
   }
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -204,23 +204,23 @@ export class ProjectsController {
   constructor(@Inject(GrowthService) private readonly service: GrowthService) {}
   @Get()
   @ApiCookieAuth()
-  list(@CurrentUser() user: { id: string }) {
-    return { success: true, data: this.service.listProjects(user.id) };
+  async list(@CurrentUser() user: { id: string }) {
+    return { success: true, data: await this.service.listProjects(user.id) };
   }
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiCookieAuth()
-  create(@CurrentUser() user: { id: string }, @Body() body: ProjectDto) {
-    return { success: true, data: this.service.createProject(user.id, body) };
+  async create(@CurrentUser() user: { id: string }, @Body() body: ProjectDto) {
+    return { success: true, data: await this.service.createProject(user.id, body) };
   }
   @Patch(':id')
   @ApiCookieAuth()
-  update(
+  async update(
     @CurrentUser() user: { id: string },
     @Param('id', idPipe) id: string,
     @Body() body: ProjectUpdateDto,
   ) {
-    return { success: true, data: this.service.updateProject(id, user.id, body) };
+    return { success: true, data: await this.service.updateProject(id, user.id, body) };
   }
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
