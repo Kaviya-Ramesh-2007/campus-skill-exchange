@@ -48,8 +48,20 @@ function assertSafeToRun(): void {
   }
 }
 
-/** Deterministic ids keep the dataset stable and cross-references trivial. */
-const id = (n: number) => `d3m00000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+/**
+ * Generates a guaranteed-valid UUID that is stable for the lifetime of one run,
+ * so cross-references (skill -> UserSkill, badge -> UserBadge) stay consistent.
+ * Idempotency does not depend on these ids: every write is keyed on a natural
+ * unique constraint (User.email, Skill.normalizedName, BadgeDefinition.code).
+ */
+const assignedIds = new Map<string, string>();
+const id = (namespace: string): string => {
+  const existing = assignedIds.get(namespace);
+  if (existing) return existing;
+  const created = randomUUID();
+  assignedIds.set(namespace, created);
+  return created;
+};
 
 const SKILLS = [
   { key: 'java', name: 'Java' },
@@ -63,7 +75,7 @@ const SKILLS = [
   { key: 'cloud', name: 'Cloud Computing' },
   { key: 'dbms', name: 'DBMS' },
 ];
-const skillId = (key: string) => id(100 + SKILLS.findIndex((s) => s.key === key));
+const skillId = (key: string) => id('skill:' + key);
 
 interface DemoUserSpec {
   key: string;
@@ -337,8 +349,8 @@ const BADGES = [
   },
 ];
 
-const userId = (key: string) => id(200 + USERS.findIndex((u) => u.key === key));
-const badgeId = (key: string) => id(300 + BADGES.findIndex((b) => b.key === key));
+const userId = (key: string) => id('user:' + key);
+const badgeId = (key: string) => id('badge:' + key);
 
 async function seed(): Promise<void> {
   assertSafeToRun();
@@ -425,7 +437,7 @@ async function seed(): Promise<void> {
         visibility: 'PUBLIC',
       },
       create: {
-        id: id(400 + USERS.indexOf(user)),
+        id: id('profile:' + user.key),
         userId: finalId,
         publicDisplayName: user.displayName,
         department: user.profile.department,
