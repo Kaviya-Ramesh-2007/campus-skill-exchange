@@ -111,7 +111,7 @@ interface DemoUserSpec {
  *   Priya   teaches React/UI/UX,   wants Python/ML/DBMS
  *   Rahul   teaches Python/ML,     wants React/SQL/AWS
  *   Ananya  teaches SQL/DBMS,      wants JavaScript/Cloud
- * => mutual pairs: Kaviya<->Arun, Kaviya<->Ananya, Priya<->Rahul, Priya<->Ananya.
+ * => mutual pairs: Kaviya<->Arun, Kaviya<->Ananya, Priya<->Rahul.
  */
 const USERS: DemoUserSpec[] = [
   {

@@ -79,8 +79,7 @@ The teach/want sets produce these mutual pairs out of the box:
 
 - **Kaviya ↔ Arun** — Kaviya teaches Java, Arun wants Java; Arun teaches AWS, Kaviya wants AWS.
 - **Kaviya ↔ Ananya** — JavaScript and SQL.
-- **Priya ↔ Rahul** — React and Python.
-- **Priya ↔ Ananya** — UI/UX and DBMS.
+- **Rahul ↔ Priya** — React and Python.
 
 There are also several one-directional matches, so Discovery looks realistic
 rather than perfectly symmetrical.
